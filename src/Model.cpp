@@ -1,5 +1,8 @@
 #include "Model.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 Model::Mesh Model::processMesh(const aiMesh *mesh, const aiScene *scene) {
     GLuint vao, vbo, ebo;
     // create buffers/arrays

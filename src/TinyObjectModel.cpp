@@ -1,5 +1,8 @@
 #include "TinyObjectModel.h"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+
 TinyObjectModel::TinyObjectModel(const std::string &filename) {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;

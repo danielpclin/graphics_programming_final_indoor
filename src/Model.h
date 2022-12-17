@@ -9,12 +9,8 @@
 #include <cmath>
 
 #include "GL/glew.h"
-#include "GLM/glm.hpp"
-#include "GLM/gtc/type_ptr.hpp"
-
-// include stb image for texture image import
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "glm/glm.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
 #include "assimp/cimport.h"
 #include "assimp/scene.h"

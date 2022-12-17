@@ -19,8 +19,9 @@
 
 #include "Common.h"
 #include "Shader.h"
-#include "TinyObjectModel.h"
+#include "Model.h"
 #include "Texture.h"
+#include "TinyObjectModel.h"
 
 glm::mat4 projection_matrix(1.0f);
 glm::mat4 view_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.2f, -6.0f));
@@ -39,9 +40,6 @@ void init()
     glEnable(GL_CULL_FACE);
     glFrontFace(GL_CCW);
 
-    // TODO
-    Shader shader("shader/material.vs.glsl", "shader/material.fs.glsl");
-    shader.use();
 }
 
 void prepare_imgui()
