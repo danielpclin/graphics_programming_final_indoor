@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.12)
 project(graphics_programming)
 
 include_directories(include)
@@ -6,12 +6,6 @@ link_directories(lib)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-file(
-        GLOB
-        SOURCE_FILES
-        src/*.cpp
-)
 
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/imgui)
 add_library(IMGUI STATIC)
@@ -27,10 +21,10 @@ target_sources(IMGUI
     ${IMGUI_DIR}/imgui_impl_glfw.cpp
 )
 
-add_compile_definitions(NDEBUG)
-add_executable(graphics_programming ${SOURCE_FILES})
+#add_compile_definitions(NDEBUG)
+add_executable(graphics_programming src/main.cpp src/Camera.cpp src/Model.cpp src/Shader.cpp src/Texture.cpp src/TinyObjectModel.cpp)
 
-set(LIBS opengl32.lib glew32.lib glfw3dll.lib IMGUI)
+set(LIBS opengl32.lib glew32.lib glfw3dll.lib IMGUI assimp.lib)
 target_link_libraries(graphics_programming ${LIBS})
 
 # copy graphics_programming dll to bin dir
@@ -50,3 +44,15 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${PROJECT_SOURCE_DIR}/assets"
         $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets)
+
+## symlink shader folder
+#add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+#        COMMAND ${CMAKE_COMMAND} -E create_symlink
+#        "${PROJECT_SOURCE_DIR}/shader"
+#        $<TARGET_FILE_DIR:${PROJECT_NAME}>/shader)
+#
+## symlink assets folder
+#add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+#        COMMAND ${CMAKE_COMMAND} -E create_symlink
+#        "${PROJECT_SOURCE_DIR}/assets"
+#        $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets)

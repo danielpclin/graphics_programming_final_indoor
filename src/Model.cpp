@@ -14,7 +14,7 @@ Model::Mesh Model::processMesh(const aiMesh *mesh, const aiScene *scene) {
 
     // load data into vertex buffers
     int vertices_size = sizeof(float) * 8 * mesh->mNumVertices;
-    float *vertices = (float*)malloc(vertices_size);
+    auto *vertices = (float*)malloc(vertices_size);
 
     for (unsigned int i = 0; i < mesh->mNumVertices; i++)
     {
@@ -22,7 +22,7 @@ Model::Mesh Model::processMesh(const aiMesh *mesh, const aiScene *scene) {
         aiVector3D norm = mesh->mNormals[i];
         aiVector3D uv = mesh->HasTextureCoords(0) ? mesh->mTextureCoords[0][i] : aiVector3D(0.0);
 
-        //verts
+        //vertices
         vertices[i * 8] = vert.x;
         vertices[i * 8 + 1] = vert.y;
         vertices[i * 8 + 2] = vert.z;
@@ -41,35 +41,40 @@ Model::Mesh Model::processMesh(const aiMesh *mesh, const aiScene *scene) {
     glBufferData(GL_ARRAY_BUFFER, vertices_size, vertices, GL_STATIC_DRAW);
     free(vertices);
 
-    int indices_size = sizeof(int) * 3 * mesh->mNumFaces;
+    int indices_size = sizeof(unsigned int) * 3 * mesh->mNumFaces;
     auto *indices = (unsigned int*)malloc(indices_size);
-
+    int face_count = 0;
     for (unsigned int i = 0; i < mesh->mNumFaces; i++)
     {
         aiFace face = mesh->mFaces[i];
+        if (face.mNumIndices < 3)
+            continue;
+
         assert(face.mNumIndices == 3);
+
         // retrieve all indices of the face and store them in the indices vector
         for (unsigned int j = 0; j < face.mNumIndices; j++)
-            indices[i * 3 + j] = face.mIndices[j];
+            indices[face_count * 3 + j] = face.mIndices[j];
+        face_count++;
     }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLuint)(face_count * 3 * sizeof(unsigned int)), indices, GL_STATIC_DRAW);
     free(indices);
 
     // set the vertex attribute pointers
     // vertex Positions
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (GLvoid*)0);
-    // vertex texture coords
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (GLvoid*)(sizeof(float) * 6));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (GLvoid*)nullptr);
     // vertex normals
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (GLvoid*)(sizeof(float) * 3));
+    // vertex texture coords
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (GLvoid*)(sizeof(float) * 3));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (GLvoid*)(sizeof(float) * 6));
 
     glBindVertexArray(0);
-    std::cout << "mesh loaded: " << mesh->mName.C_Str() << std::endl;
+    std::cout << "Mesh loaded: " << mesh->mName.C_Str() << std::endl;
     return Mesh{ vao, 3 * mesh->mNumFaces, mesh->mMaterialIndex };
 }
 
@@ -92,18 +97,37 @@ void Model::processMaterial(const aiScene *scene) {
     std::cout << "Material count: " << scene->mNumMaterials << std::endl;
     for (int i = 0; i < scene->mNumMaterials; i++)
     {
-
-        std::cout << "Material " << i << " Diffuse " << scene->mMaterials[i]->GetTextureCount(aiTextureType_DIFFUSE) << " height " << scene->mMaterials[i]->GetTextureCount(aiTextureType_HEIGHT) << std::endl;
-        if (scene->mMaterials[i]->GetTextureCount(aiTextureType_DIFFUSE) > 0)
-        {
+        Material material{};
+        aiString name;
+        scene->mMaterials[i]->Get(AI_MATKEY_NAME, name);
+        std::cout << "Material " << i << " " << name.C_Str() << std::endl;
+        std::cout << "Diffuse texture count " << scene->mMaterials[i]->GetTextureCount(aiTextureType_DIFFUSE) << std::endl;
+        if (scene->mMaterials[i]->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
             aiString str;
             scene->mMaterials[i]->GetTexture(aiTextureType_DIFFUSE, 0, &str);
-            diffuse[i] = loadTexture(str.C_Str());
+            material.textureID = loadTexture(str.C_Str());
+            material.hasTexture = true;
         }
+
+        aiColor3D color(0.f, 0.f, 0.f);
+        scene->mMaterials[i]->Get(AI_MATKEY_COLOR_AMBIENT, color);
+        std::cout << "Ambient color: " << glm::to_string(glm::vec3(color.r, color.g, color.b)) << std::endl;
+        material.ambientColor = glm::vec3(color.r, color.g, color.b);
+        scene->mMaterials[i]->Get(AI_MATKEY_COLOR_DIFFUSE, color);
+        std::cout << "Diffuse color: " << glm::to_string(glm::vec3(color.r, color.g, color.b)) << std::endl;
+        material.diffuseColor = glm::vec3(color.r, color.g, color.b);
+        scene->mMaterials[i]->Get(AI_MATKEY_COLOR_SPECULAR, color);
+        std::cout << "Specular color: " << glm::to_string(glm::vec3(color.r, color.g, color.b)) << std::endl;
+        material.specularColor = glm::vec3(color.r, color.g, color.b);
+        scene->mMaterials[i]->Get(AI_MATKEY_SHININESS, color);
+        std::cout << "Shininess: " << color.r << std::endl;
+        material.shininess = color.r;
+
+        materials[i] = material;
     }
 }
 
-Model::Texture Model::loadTexture(const std::string &pFile) {
+GLuint Model::loadTexture(const std::string &pFile) {
     GLuint textureID;
     glGenTextures(1, &textureID);
 
@@ -116,8 +140,8 @@ Model::Texture Model::loadTexture(const std::string &pFile) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -129,23 +153,22 @@ Model::Texture Model::loadTexture(const std::string &pFile) {
         std::cout << "Texture failed to load at path: " << pFile << std::endl;
         stbi_image_free(data);
     }
-    return Texture{ textureID };
+    return textureID;
 }
 
 Model::Model(const std::string &pFile) {
-    const struct aiScene* scene = aiImportFile(pFile.c_str(),
+    Assimp::Importer importer;
+    const struct aiScene* scene = importer.ReadFile(pFile.c_str(),
                                                aiProcess_Triangulate |
-                                               aiProcess_JoinIdenticalVertices |
                                                aiProcess_GenNormals |
-                                               aiProcess_FlipUVs |
-                                               aiProcess_GenUVCoords|
-                                               aiProcess_SortByPType
+                                               aiProcess_FlipUVs
+//                                               aiProcess_GenUVCoords
+//                                               aiProcess_SortByPType
     );
 
     // If the import failed, report it
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        //DoTheErrorLogging(aiGetErrorString());
-        std::cout << "ERROR ASSIMP " << aiGetErrorString() << std::endl;
+        std::cout << "ERROR ASSIMP " << importer.GetErrorString() << std::endl;
     }
 
     directory = pFile.substr(0, pFile.find_last_of('/'));
@@ -155,7 +178,4 @@ Model::Model(const std::string &pFile) {
     processNode(scene->mRootNode, scene);
 
     processMaterial(scene);
-
-    // We're done. Release all resources associated with this import
-    aiReleaseImport(scene);
 }

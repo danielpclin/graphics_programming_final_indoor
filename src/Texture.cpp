@@ -1,6 +1,4 @@
 #include "Texture.h"
-
-#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 Texture::TextureData::TextureData() : width(0), height(0), data(nullptr) {}
