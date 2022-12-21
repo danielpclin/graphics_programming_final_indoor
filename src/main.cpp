@@ -13,7 +13,6 @@
 
 // include glm for vector/matrix math
 #define GLM_FORCE_SWIZZLE
-
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -22,21 +21,18 @@
 #include "Shader.h"
 #include "Model.h"
 #include "Camera.h"
-#include "Texture.h"
-#include "TinyObjectModel.h"
 
 const float FOV = 72.0;
 
 Camera *camera;
 Shader *shader;
+Shader *shadowMapShader;
 Model *gray_room;
 Model *trice;
 glm::mat4 model_matrix(1.0f);
 glm::mat4 projection_matrix(1.0f);
 
 // Mouse variables
-const uint32_t SCREEN_WIDTH = 1000;
-const uint32_t SCREEN_HEIGHT = 800;
 float mouse_last_x = 0;
 float mouse_last_y = 0;
 bool firstMouse = true;
@@ -51,6 +47,7 @@ struct RenderConfig {
     bool normal_mapping = true;
     bool bloom = true;
 } renderConfig;
+
 //imgui state
 bool show_demo_window = false;
 glm::vec3 cameraPosition;
@@ -61,45 +58,51 @@ void init() {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
 
-//    glEnable(GL_CULL_FACE);
-//    glFrontFace(GL_CCW);
+//    glEnable(GL_MULTISAMPLE);
 
-    glEnable(GL_MULTISAMPLE);
-
-//    glEnable(GL_BLEND);
-//    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+    // setup camera, models, and shaders
     camera = new Camera(glm::vec3(4.0, 1.5, -2.0), -195, -15);
     gray_room = new Model("assets/indoor/Grey_White_Room.obj");
     trice = new Model("assets/indoor/trice.obj");
-//    shader = new Shader("shader/material.vs.glsl", "shader/material.fs.glsl");
     shader = new Shader("shader/texture.vs.glsl", "shader/texture.fs.glsl");
     shader->use();
-//    shader->setVec3("light.position", glm::vec3(1.0, 5.0, 3.0));
     shader->setVec3("light.position", glm::vec3(-2.845, 2.028, -1.293));
     shader->setVec3("light.ambient", glm::vec3(0.1));
     shader->setVec3("light.diffuse", glm::vec3(0.7));
     shader->setVec3("light.specular", glm::vec3(0.2));
 
-//    GLuint FramebufferName = 0;
-//    glGenFramebuffers(1, &FramebufferName);
-//    glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
-//
-//    GLuint depthTexture;
-//    glGenTextures(1, &depthTexture);
-//    glBindTexture(GL_TEXTURE_2D, depthTexture);
-//    glTexImage2D(GL_TEXTURE_2D, 0,GL_DEPTH_COMPONENT16, 1024, 1024, 0,GL_DEPTH_COMPONENT, GL_FLOAT, 0);
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-//
-//    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthTexture, 0);
-//
-//    glDrawBuffer(GL_NONE);
-//
-//    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-//        std::cout << "Framebuffer not ok" << std::endl;
+    // directional light shadow
+    GLuint directionalFBO = 0;
+    glGenFramebuffers(1, &directionalFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, directionalFBO);
+
+    GLuint directionalDepthTextureID;
+    glActiveTexture(0);
+    glGenTextures(1, &directionalDepthTextureID);
+    glBindTexture(GL_TEXTURE_2D, directionalDepthTextureID);
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_DEPTH_COMPONENT16, 1024, 1024, 0,GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, directionalDepthTextureID, 0);
+
+    glDrawBuffer(GL_NONE);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Framebuffer not ok" << std::endl;
+
+    // Compute the MVP matrix from the light's point of view
+    glm::mat4 depthProjectionMatrix = glm::ortho<float>(-10,10,-10,10,-10,20);
+    glm::mat4 depthViewMatrix = glm::lookAt(glm::vec3(-2.845, 2.028, -1.293), glm::vec3(0.542, -0.141, -0.422), glm::vec3(0,1,0));
+    glm::mat4 depthModelMatrix = glm::mat4(1.0);
+    glm::mat4 depthMVP = depthProjectionMatrix * depthViewMatrix * depthModelMatrix;
+
+    shadowMapShader->setMat4("MVP", depthMVP);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 
 }
 
@@ -173,14 +176,12 @@ void prepare_imgui() {
             cameraPosition = camera->position;
         ImGui::SameLine();
         if (ImGui::Button("Update lookat"))
-            cameraLookat = camera->position + camera->front;
+            cameraLookat = camera->getLookAt();
         if (ImGui::Button("Set position"))
             camera->position = cameraPosition;
         ImGui::SameLine();
         if (ImGui::Button("Set lookat"))
-            ; // TODO
-
-
+            camera->updateLootAt(cameraLookat);
 
         ImGui::End();
     }

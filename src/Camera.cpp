@@ -65,9 +65,29 @@ void Camera::updateCameraVectors() {
     front = glm::normalize(_front);
 
     // also re-calculate the right and up vector
-
     // normalize the vectors, because their length gets closer to 0 the more you look up or down
     // which results in slower movement.
     right = glm::normalize(glm::cross(front, worldUp));
     up = glm::normalize(glm::cross(right, front));
+}
+
+void Camera::updatePosition(glm::vec3 position) {
+    this->position = position;
+}
+
+void Camera::updateDirection(float yaw, float pitch) {
+    this->yaw = yaw;
+    this->pitch = pitch;
+    updateCameraVectors();
+}
+
+void Camera::updateLootAt(glm::vec3 lookAt) {
+    glm::vec3 viewDirection = lookAt - position;
+    pitch = asin(-viewDirection.y);
+    yaw = atan2(viewDirection.x, viewDirection.z);
+    updateCameraVectors();
+}
+
+glm::vec3 Camera::getLookAt() const {
+    return position + front;
 }

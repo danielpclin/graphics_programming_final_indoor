@@ -23,8 +23,8 @@ public:
     glm::vec3 right{};
     glm::vec3 worldUp;
     // euler Angles
-    float yaw = -90.0f;
-    float pitch = 0.0f;
+    float yaw = 270.0f; // in degrees
+    float pitch = 0.0f; // in degrees
     // camera options
     float movementSpeed = 4.0f;
     float mouseSensitivity = 0.03f;
@@ -47,6 +47,14 @@ public:
 
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
     void processMouseScroll(float y_offset);
+
+    void updatePosition(glm::vec3 position);
+
+    void updateDirection(float yaw, float pitch);
+
+    void updateLootAt(glm::vec3 lookAt);
+
+    glm::vec3 getLookAt() const;
 
 private:
     // calculates the front vector from the Camera's (updated) Euler Angles
