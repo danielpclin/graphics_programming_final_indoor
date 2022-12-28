@@ -38,6 +38,11 @@ uniform Material material;
 
 uniform Config config;
 
+float random(vec4 seed4) {
+    float dot_product = dot(seed4, vec4(12.9898, 78.233, 45.164, 94.673));
+    return fract(sin(dot_product) * 43758.5453);
+}
+
 void main(void)
 {
     vec4 textureColor = texture(textureMap, textureCoordinate).rgba;
@@ -63,13 +68,31 @@ void main(void)
     vec3 specular = pow(max(dot(normalizedNormal, halfwayDirection), 0.0), material.shininess) * material.specular;
 
     // directional light shadow
-    float bias = max(0.05 * (1.0 - dot(normalizedNormal, lightDirection)), 0.005);
-    bias = 0.11;
+    float bias = max(0.07 * (1.0 - dot(normalizedNormal, lightDirection)), 0.005);
 
-    float visibility = 1.0;
-    if (texture(shadowMap, shadowPosition.xy).x < shadowPosition.z - bias){
-        visibility = 0.5;
+    float shadow = 0.0;
+//    if (texture(shadowMap, shadowPosition.xy).x < shadowPosition.z - bias){
+//        vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+//        for(int x = -2; x <= 2; ++x) {
+//            for(int y = -2; y <= 2; ++y) {
+//                float pcfDepth = texture(shadowMap, shadowPosition.xy + vec2(x, y) * texelSize).x;
+//                shadow += shadowPosition.z - bias > pcfDepth ? 1.0 : 0.0;
+//            }
+//        }
+//        shadow /= 25.0;
+//    } else {
+//        float closetDepth = texture(shadowMap, shadowPosition.xy).x;
+//        shadow = shadowPosition.z - bias > closetDepth ? 0.8 : 0.0;
+//    }
+    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+    for(int x = -2; x <= 2; ++x) {
+        for(int y = -2; y <= 2; ++y) {
+            float pcfDepth = texture(shadowMap, shadowPosition.xy + vec2(x, y) * texelSize).x;
+            shadow += shadowPosition.z - bias > pcfDepth ? 0.8 : 0.0;
+        }
     }
+    shadow /= 25.0;
+    shadow = 1 - shadow;
 
     color = vec4(textureColor.rgb * material.diffuse, 1.0);
 
@@ -78,7 +101,7 @@ void main(void)
     }
 
     if (config.directionalLightShadow) {
-        color = vec4(visibility * (ambient * light.ambient + diffuse * light.diffuse + specular * light.specular), 1.0);
+        color = vec4(shadow * (ambient * light.ambient + diffuse * light.diffuse + specular * light.specular), 1.0);
     }
 
     if (config.bloom) {

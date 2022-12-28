@@ -148,9 +148,7 @@ void drawToScreen() {
 void draw() {
     // Shadow
     // Compute the MVP matrix from the light's point of view
-//    glm::mat4 depthProjectionMatrix = glm::ortho<float>(-5,5,-5,5,0.1,5);
     glm::mat4 depthProjectionMatrix = glm::ortho<float>(-5, 5, -5, 5, 0.1, 10);
-//    glm::mat4 depthProjectionMatrix = glm::perspective(glm::radians(FOV), 1.0f, 0.01f, 100.0f);
     glm::mat4 depthViewMatrix = glm::lookAt(glm::vec3(-2.845, 2.028, -1.293), glm::vec3(0.542, -0.141, -0.422), glm::vec3(0,1,0));
     glm::mat4 depthVP = depthProjectionMatrix * depthViewMatrix;
 
