@@ -64,7 +64,7 @@ void main(void)
 
     // directional light shadow
     float bias = max(0.05 * (1.0 - dot(normalizedNormal, lightDirection)), 0.005);
-    bias = 0.01;
+    bias = 0.11;
 
     float visibility = 1.0;
     if (texture(shadowMap, shadowPosition.xy).x < shadowPosition.z - bias){

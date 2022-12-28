@@ -35,18 +35,31 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         "${PROJECT_SOURCE_DIR}/dll"
         $<TARGET_FILE_DIR:${PROJECT_NAME}>)
 
+add_custom_target(
+    resource_target ALL
+)
+
+add_dependencies(${PROJECT_NAME} resource_target)
+
 # copy shader
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+add_custom_command(TARGET resource_target POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${PROJECT_SOURCE_DIR}/shader"
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>/shader)
+        "${PROJECT_BINARY_DIR}/bin/shader")
 
 # copy assets
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+add_custom_command(TARGET resource_target POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${PROJECT_SOURCE_DIR}/assets"
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets)
+        "${PROJECT_BINARY_DIR}/bin/assets")
 
+# set build dir to project dir
+#set_target_properties(graphics_programming
+#    PROPERTIES
+#    RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}"
+#)
+
+# Only works in unix
 ## symlink shader folder
 #add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 #        COMMAND ${CMAKE_COMMAND} -E create_symlink

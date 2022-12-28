@@ -23,6 +23,8 @@
 #include "Camera.h"
 
 const float FOV = 72.0;
+int WIDTH = 1600;
+int HEIGHT = 900;
 
 Camera *camera;
 Shader *shader;
@@ -61,8 +63,6 @@ void init() {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
 
-//    glEnable(GL_MULTISAMPLE);
-
     // setup camera, models, and shaders
     camera = new Camera(glm::vec3(4.0, 1.5, -2.0), -195, -15);
     cameraPosition = camera->position;
@@ -81,12 +81,11 @@ void init() {
     glGenTextures(1, &depthMap);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, depthMap);
-    glTexImage2D(GL_TEXTURE_2D, 0,GL_DEPTH_COMPONENT, 4096, 4096, 0,GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_DEPTH_COMPONENT, 1024, 1024, 0,GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-//    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
     glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthMap, 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
@@ -133,18 +132,20 @@ void init() {
     glUseProgram(0);
 }
 
-void draw() {
-//    // draw to screen
-//    glViewport(0, 0, 1600, 900);
-//	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//	glDisable(GL_DEPTH_TEST);
-//	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-//	glClear(GL_COLOR_BUFFER_BIT);
-//    screenShader->use();
-//	glBindVertexArray(frameVAO);
-//	glDrawArrays(GL_TRIANGLES, 0, 6);
-//    return;
+void drawToScreen() {
+    // draw to screen
+    glViewport(0, 0, WIDTH, HEIGHT);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDisable(GL_DEPTH_TEST);
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+    screenShader->use();
+//    screenShader->setInt("colorTexture", 0);
+    glBindVertexArray(frameVAO);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+}
 
+void draw() {
     // Shadow
     // Compute the MVP matrix from the light's point of view
 //    glm::mat4 depthProjectionMatrix = glm::ortho<float>(-5,5,-5,5,0.1,5);
@@ -161,8 +162,7 @@ void draw() {
     );
     glm::mat4 depthBiasVP = biasMatrix * depthVP;
 
-
-    glViewport(0, 0, 4096, 4096);
+    glViewport(0, 0, 1024, 1024);
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -182,7 +182,7 @@ void draw() {
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glViewport(0, 0, 1600, 900);
+    glViewport(0, 0, WIDTH, HEIGHT);
     // projection & view matrix
     shader->use();
     shader->setMat4("depthMVP", depthBiasVP);
@@ -246,16 +246,11 @@ void prepare_imgui() {
         ImGui::InputFloat3("Position", (float *)&cameraPosition);
         ImGui::InputFloat3("Lookat", (float *)&cameraLookat);
 
-        if (ImGui::Button("Update position"))
-            cameraPosition = camera->position;
-        ImGui::SameLine();
-        if (ImGui::Button("Update lookat"))
-            cameraLookat = camera->getLookAt();
-        if (ImGui::Button("Set position"))
+        if (ImGui::Button("Set position and lookat")){
             camera->position = cameraPosition;
-        ImGui::SameLine();
-        if (ImGui::Button("Set lookat"))
             camera->updateLootAt(cameraLookat);
+        }
+
 
         ImGui::End();
     }
@@ -324,6 +319,8 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     if (width == 0 && height == 0)
         return;
+    WIDTH = width;
+    HEIGHT = height;
     // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
@@ -367,7 +364,7 @@ int main(int argc, char *argv[]) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
-    window = glfwCreateWindow(1600, 900, "Graphics programming final indoor", nullptr, nullptr);
+    window = glfwCreateWindow(WIDTH, HEIGHT, "Graphics programming final indoor", nullptr, nullptr);
     if (!window) {
         glfwTerminate();
         return EXIT_FAILURE;
