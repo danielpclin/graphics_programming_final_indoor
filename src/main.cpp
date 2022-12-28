@@ -81,7 +81,7 @@ void init() {
     glGenTextures(1, &depthMap);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, depthMap);
-    glTexImage2D(GL_TEXTURE_2D, 0,GL_DEPTH_COMPONENT, 1024, 1024, 0,GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_DEPTH_COMPONENT, 4096, 4096, 0,GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -162,7 +162,7 @@ void draw() {
     glm::mat4 depthBiasVP = biasMatrix * depthVP;
 
 
-    glViewport(0, 0, 1024, 1024);
+    glViewport(0, 0, 4096, 4096);
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -401,6 +401,7 @@ int main(int argc, char *argv[]) {
 
     glViewport(0, 0, width, height);
     projection_matrix = glm::perspective(glm::radians(FOV), (float) width / (float) height, 0.01f, 100.0f);
+//    projection_matrix = glm::ortho<float>(-5, 5, -5, 5,0.01f, 10.0f);
 
     init();
 
