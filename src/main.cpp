@@ -148,11 +148,10 @@ void draw() {
     // Shadow
     // Compute the MVP matrix from the light's point of view
 //    glm::mat4 depthProjectionMatrix = glm::ortho<float>(-5,5,-5,5,0.1,5);
-    glm::mat4 depthProjectionMatrix = glm::ortho<float>(-10, 10, -10, 10, 0.1, 10);
+    glm::mat4 depthProjectionMatrix = glm::ortho<float>(-5, 5, -5, 5, 0.1, 10);
 //    glm::mat4 depthProjectionMatrix = glm::perspective(glm::radians(FOV), 1.0f, 0.01f, 100.0f);
     glm::mat4 depthViewMatrix = glm::lookAt(glm::vec3(-2.845, 2.028, -1.293), glm::vec3(0.542, -0.141, -0.422), glm::vec3(0,1,0));
-    glm::mat4 depthModelMatrix = glm::mat4(1.0);
-    glm::mat4 depthMVP = depthProjectionMatrix * depthViewMatrix * depthModelMatrix;
+    glm::mat4 depthVP = depthProjectionMatrix * depthViewMatrix;
 
     glm::mat4 biasMatrix(
         0.5, 0.0, 0.0, 0.0,
@@ -160,7 +159,7 @@ void draw() {
         0.0, 0.0, 0.5, 0.0,
         0.5, 0.5, 0.5, 1.0
     );
-    glm::mat4 depthBiasMVP = biasMatrix * depthMVP;
+    glm::mat4 depthBiasVP = biasMatrix * depthVP;
 
 
     glViewport(0, 0, 1024, 1024);
@@ -168,12 +167,14 @@ void draw() {
     glClear(GL_DEPTH_BUFFER_BIT);
 
     shadowMapShader->use();
-    shadowMapShader->setMat4("MVP", depthMVP);
+    shadowMapShader->setMat4("VP", depthVP);
 
+    shadowMapShader->setMat4("M", glm::mat4(1.0));
     for (auto &mesh: gray_room->meshes) {
         glBindVertexArray(mesh.vao);
         glDrawElements(GL_TRIANGLES, (GLint) mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid *) nullptr);
     }
+    shadowMapShader->setMat4("M", glm::scale(glm::translate(glm::mat4(1.0), glm::vec3(2.05, 0.628725, -1.9)), glm::vec3(0.001)));
     for (auto &mesh: trice->meshes) {
         glBindVertexArray(mesh.vao);
         glDrawElements(GL_TRIANGLES, (GLint) mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid *) nullptr);
@@ -184,7 +185,7 @@ void draw() {
     glViewport(0, 0, 1600, 900);
     // projection & view matrix
     shader->use();
-    shader->setMat4("depthMVP", depthBiasMVP);
+    shader->setMat4("depthMVP", depthBiasVP);
     shader->setBool("config.blinnPhong", renderConfig.blinn_phong);
     shader->setBool("config.directionalLightShadow", renderConfig.directional_light_shadow);
     shader->setBool("config.bloom", renderConfig.bloom);
