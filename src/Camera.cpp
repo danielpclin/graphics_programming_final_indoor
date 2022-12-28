@@ -82,7 +82,7 @@ void Camera::updateDirection(float yaw, float pitch) {
 }
 
 void Camera::updateLootAt(glm::vec3 lookAt) {
-    glm::vec3 viewDirection = lookAt - position;
+    glm::vec3 viewDirection = glm::normalize(lookAt - position);
     pitch = asin(-viewDirection.y);
     yaw = atan2(viewDirection.x, viewDirection.z);
     updateCameraVectors();

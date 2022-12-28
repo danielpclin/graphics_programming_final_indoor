@@ -27,6 +27,8 @@ add_executable(graphics_programming src/main.cpp src/Camera.cpp src/Model.cpp sr
 set(LIBS opengl32.lib glew32.lib glfw3dll.lib IMGUI assimp.lib)
 target_link_libraries(graphics_programming ${LIBS})
 
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
+
 # copy graphics_programming dll to bin dir
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
