@@ -69,7 +69,7 @@ void init() {
     cameraLookat = camera->getLookAt();
     gray_room = new Model("assets/indoor/Grey_White_Room.obj");
     trice = new Model("assets/indoor/trice.obj");
-    shader = new Shader("shader/texture.vs.glsl", "shader/texture.fs.glsl");
+    shader = new Shader("shader/texture.vert", "shader/texture.frag");
     shadowMapShader = new Shader("shader/shadowMap.vert", "shader/shadowMap.frag");
     screenShader = new Shader("shader/screen.vert", "shader/screen.frag");
 

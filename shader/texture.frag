@@ -47,6 +47,9 @@ void main(void)
 {
     vec4 textureColor = texture(textureMap, textureCoordinate).rgba;
     vec3 normalizedNormal = normalize(normal);
+    vec3 lightDirection = normalize(light.position - position);
+    vec3 viewDirection = normalize(cameraPosition - position);
+    vec3 halfwayDirection = normalize(lightDirection + viewDirection);
 
     if (textureColor.a < 0.5)
         discard;
@@ -54,38 +57,39 @@ void main(void)
     if (!hasTexture)
         textureColor = vec4(1.0);
 
-
     // ambient
-    vec3 ambient = material.ambient * textureColor.rgb * light.ambient;
+    vec3 ambient = material.diffuse;
 
     // diffuse
-    vec3 lightDirection = normalize(light.position - position);
-    vec3 diffuse = max(dot(normalizedNormal, lightDirection), 0.0) * textureColor.rgb * material.diffuse * light.diffuse;
+    vec3 diffuse = material.diffuse;
 
     // specular
-    vec3 viewDirection = normalize(cameraPosition - position);
-    vec3 halfwayDirection = normalize(lightDirection + viewDirection);
-    vec3 specular = pow(max(dot(normalizedNormal, halfwayDirection), 0.0), material.shininess) * material.specular * light.specular;
+    vec3 specular = material.diffuse;
+
+    if (config.blinnPhong) {
+        ambient = material.ambient * textureColor.rgb;
+        diffuse = max(dot(normalizedNormal, lightDirection), 0.0) * textureColor.rgb * material.diffuse;
+        specular = pow(max(dot(normalizedNormal, halfwayDirection), 0.0), material.shininess) * material.specular;
+    }
 
     // directional light shadow
-    float bias = max(0.06 * (1.0 - dot(normalizedNormal, lightDirection)), 0.005);
+    float bias = max(0.06 * (1.0 - dot(normalizedNormal, lightDirection)), 0.01);
 
     float shadow = 0.0;
-    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
-    for(int x = -1; x <= 1; ++x) {
-        for(int y = -1; y <= 1; ++y) {
+    vec2 texelSize = 0.4 / textureSize(shadowMap, 0);
+    for(int x = -5; x <= 5; ++x) {
+        for(int y = -5; y <= 5; ++y) {
             float pcfDepth = texture(shadowMap, shadowPosition.xy + vec2(x, y) * texelSize).x;
             shadow += shadowPosition.z - bias > pcfDepth ? 1.0 : 0.0;
         }
     }
-    shadow /= 9.0;
+    shadow /= 121.0;
     shadow = 1 - shadow;
 
-    color = vec4(textureColor.rgb * material.diffuse, 1.0);
-
-    if (config.blinnPhong) {
-        color = vec4((ambient + diffuse + specular), 1.0);
-    }
+    ambient = ambient * light.ambient;
+    diffuse = diffuse * light.diffuse;
+    specular = specular * light.specular;
+    color = vec4((ambient + diffuse + specular), 1.0);
 
     if (config.directionalLightShadow) {
         color = vec4((ambient + shadow * (diffuse + specular)), 1.0);
