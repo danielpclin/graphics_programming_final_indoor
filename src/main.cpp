@@ -37,6 +37,22 @@ glm::mat4 projection_matrix(1.0f);
 GLuint depthMapFBO;
 GLuint frameVAO;
 
+/*----- Post Process Parameters Begin ----- */
+GLuint FBO;
+GLuint depthRBO;
+GLuint FBODataTexture;
+/*----- Post Process Parameters End ----- */
+
+/*----- Bloom Effect Parameters Begin ----- */
+Model* emissive_sphere;
+glm::vec3 emissive_sphere_position = glm::vec3(1.87659, 0.4625, 0.103928);
+GLuint BloomEffect_BrightColor_Texture;
+Shader* BloomEffect_BlurShader;
+GLuint BloomEffect_pingpongFBO[2];
+GLuint BloomEffect_pingpongBuffer[2];
+/*----- Bloom Effect Parameters End ----- */
+
+
 // Mouse variables
 float mouse_last_x = 0;
 float mouse_last_y = 0;
@@ -50,7 +66,7 @@ struct RenderConfig {
     bool directional_light_shadow = true;
     bool deferred_shading = true;
     bool normal_mapping = true;
-    bool bloom = true;
+    bool bloom = false;
 } renderConfig;
 
 //imgui state
@@ -72,6 +88,10 @@ void init() {
     shader = new Shader("shader/texture.vert", "shader/texture.frag");
     shadowMapShader = new Shader("shader/shadowMap.vert", "shader/shadowMap.frag");
     screenShader = new Shader("shader/screen.vert", "shader/screen.frag");
+    /*----- Bloom Effect Object/Shader Begin ----- */
+    emissive_sphere = new Model("assets/indoor/sphere.obj");
+    BloomEffect_BlurShader = new Shader("shader/BloomEffectBlur.vert", "shader/BloomEffectBlur.frag");
+    /*----- Bloom Effect Object/Shader End ----- */
 
     // directional light shadow
     glGenFramebuffers(1, &depthMapFBO);
@@ -94,6 +114,57 @@ void init() {
         std::cout << "Framebuffer not ok" << std::endl;
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    /*----- Post Process FBO/Textures Init. Begin ----- */
+    glGenFramebuffers(1, &FBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBO);
+    
+    glGenRenderbuffers(1, &depthRBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, depthRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, WIDTH, HEIGHT);
+    glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRBO);
+
+    glActiveTexture(GL_TEXTURE1);
+    glGenTextures(1, &FBODataTexture);
+    glBindTexture(GL_TEXTURE_2D, FBODataTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FBODataTexture, 0);
+
+    /*----- Bloom Effect HDR Texture Init. Begin ----- */
+    glActiveTexture(GL_TEXTURE2);
+    glGenTextures(1, &BloomEffect_BrightColor_Texture);
+    glBindTexture(GL_TEXTURE_2D, BloomEffect_BrightColor_Texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, BloomEffect_BrightColor_Texture, 0);
+    /*----- Bloom Effect HDR Texture Init. End ----- */
+
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    /*----- Post Process FBO/Textures Init. End ----- */
+
+    /*----- Bloom Effect FBO/Blur Texture Init. Begin ----- */
+    glGenFramebuffers(2, BloomEffect_pingpongFBO);
+    glGenTextures(2, BloomEffect_pingpongBuffer);
+    for (unsigned int i = 0; i < 2; i++)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, BloomEffect_pingpongFBO[i]);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, BloomEffect_pingpongBuffer[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, BloomEffect_pingpongBuffer[i], 0);
+    }
+    /*----- Bloom Effect FBO/Blur Texture Init. End ----- */
 
     // screen frame VAO
     GLuint frameVBO;
@@ -125,9 +196,6 @@ void init() {
     shader->setVec3("light.specular", glm::vec3(0.2));
     shader->setInt("shadowMap", 0);
 
-    screenShader->use();
-    screenShader->setInt("colorTexture", 0);
-
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(0);
 }
@@ -135,13 +203,35 @@ void init() {
 void drawToScreen() {
     // draw to screen
     glViewport(0, 0, WIDTH, HEIGHT);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glDisable(GL_DEPTH_TEST);
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	//glDisable(GL_DEPTH_TEST);
+    glClearColor(0.19, 0.19, 0.19, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     screenShader->use();
-//    screenShader->setInt("colorTexture", 0);
+    screenShader->setBool("config.blinnPhong", renderConfig.blinn_phong);
+    screenShader->setBool("config.directionalLightShadow", renderConfig.directional_light_shadow);
+    screenShader->setBool("config.bloom", renderConfig.bloom);
+    screenShader->setBool("config.deferredShading", renderConfig.deferred_shading);
+    screenShader->setBool("config.normalMapping", renderConfig.normal_mapping);
     glBindVertexArray(frameVAO);
+
+    /*----- Post Process Textures Binding Begin ----- */
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, FBODataTexture);
+    screenShader->setInt("colorTexture", 1);
+
+    /*----- Bloom Effect Textures Binding Begin ----- */
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, BloomEffect_BrightColor_Texture);
+    screenShader->setInt("BloomEffect_HDR_Texture", 2);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, BloomEffect_pingpongBuffer[0]);
+    screenShader->setInt("BloomEffect_Blur_Texture", 3);
+    /*----- Bloom Effect Textures Binding End ----- */
+
+    /*----- Post Process Textures Binding End ----- */
+
+
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
@@ -159,12 +249,13 @@ void draw() {
         0.5, 0.5, 0.5, 1.0
     );
     glm::mat4 depthBiasVP = biasMatrix * depthVP;
-
+    
     glViewport(0, 0, 1024, 1024);
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
 
     shadowMapShader->use();
+    glActiveTexture(GL_TEXTURE0);
     shadowMapShader->setMat4("VP", depthVP);
 
     shadowMapShader->setMat4("M", glm::mat4(1.0));
@@ -178,7 +269,12 @@ void draw() {
         glDrawElements(GL_TRIANGLES, (GLint) mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid *) nullptr);
     }
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    /*----- Post Process Render Setting Begin ----- */
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBO);
+    unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, attachments);
+    /*----- Post Process Render Setting End ----- */
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, WIDTH, HEIGHT);
     // projection & view matrix
@@ -189,6 +285,10 @@ void draw() {
     shader->setBool("config.bloom", renderConfig.bloom);
     shader->setBool("config.deferredShading", renderConfig.deferred_shading);
     shader->setBool("config.normalMapping", renderConfig.normal_mapping);
+    /*----- Bloom Effect Setting Begin ----- */
+    if (renderConfig.bloom) shader->setVec3("emissive_sphere_position", emissive_sphere_position);
+    /*----- Bloom Effect Setting End ----- */
+    shader->setBool("isLightObject", false);
 
     shader->setMat4("model", model_matrix);
     shader->setMat4("view", camera->getViewMatrix());
@@ -216,6 +316,52 @@ void draw() {
         glDrawElements(GL_TRIANGLES, (GLint) mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid *) nullptr);
     }
 
+    /*----- Bloom Effect Render Begin ----- */
+    if (renderConfig.bloom) {
+        shader->setMat4("model", glm::scale(glm::translate(glm::mat4(1.0), emissive_sphere_position), glm::vec3(0.22)));
+        shader->setBool("isLightObject", true);
+        for (auto& mesh : emissive_sphere->meshes) {
+            glBindVertexArray(mesh.vao);
+            shader->setBool("hasTexture", emissive_sphere->materials[mesh.materialID].hasTexture);
+            shader->setInt("textureMap", emissive_sphere->materials[mesh.materialID].textureID);
+            shader->setVec3("material.ambient", emissive_sphere->materials[mesh.materialID].ambientColor);
+            shader->setVec3("material.diffuse", glm::vec3(1.0));
+            shader->setVec3("material.specular", emissive_sphere->materials[mesh.materialID].specularColor);
+            shader->setFloat("material.shininess", emissive_sphere->materials[mesh.materialID].shininess);
+            glDrawElements(GL_TRIANGLES, (GLint)mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid*) nullptr);
+        }
+        
+        bool BloomEffect_horizontal = true, BloomEffect_first_iteration = true;
+        int BloomEffect_amount = 10;
+        glViewport(0, 0, WIDTH, HEIGHT);
+        BloomEffect_BlurShader->use();
+        glBindVertexArray(frameVAO);
+        for (unsigned int i = 0; i < BloomEffect_amount; i++) {
+            glBindFramebuffer(GL_FRAMEBUFFER, BloomEffect_pingpongFBO[BloomEffect_horizontal]);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glDrawBuffer(GL_COLOR_ATTACHMENT0);
+            BloomEffect_BlurShader->setInt("horizontal", BloomEffect_horizontal);
+            if (BloomEffect_first_iteration) {
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_2D, BloomEffect_BrightColor_Texture);
+                BloomEffect_BlurShader->setInt("image", 2);
+            } else {
+                glActiveTexture(GL_TEXTURE3);
+                glBindTexture(GL_TEXTURE_2D, BloomEffect_pingpongBuffer[!BloomEffect_horizontal]);
+                BloomEffect_BlurShader->setInt("image", 3);
+            }
+            
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+
+            BloomEffect_horizontal = !BloomEffect_horizontal;
+            if (BloomEffect_first_iteration) BloomEffect_first_iteration = false;
+        }
+    }
+    /*----- Bloom Effect Render End ----- */
+
+    /*----- Post Process Render Begin ----- */
+    drawToScreen();
+    /*----- Post Process Render End ----- */
 }
 
 void prepare_imgui() {
@@ -237,7 +383,11 @@ void prepare_imgui() {
         ImGui::Checkbox("Directional light shadow", &renderConfig.directional_light_shadow);
         ImGui::Checkbox("Deferred shading", &renderConfig.deferred_shading);
         ImGui::Checkbox("Normal mapping", &renderConfig.normal_mapping);
+        /*----- Bloom Effect ----- */
         ImGui::Checkbox("Bloom", &renderConfig.bloom);
+        ImGui::SliderFloat("X", &emissive_sphere_position.x, 0.0f, 4.0f);
+        ImGui::SliderFloat("Y", &emissive_sphere_position.y, 0.0f, 4.0f);
+        ImGui::SliderFloat("Z", &emissive_sphere_position.z, -4.0f, 1.0f);
 
         ImGui::Text("Camera position %.2f, %.2f, %.2f", camera->position.x, camera->position.y, camera->position.z);
         ImGui::Text("Camera yaw: %.2f°, pitch: %.2f°", camera->yaw, camera->pitch);
@@ -323,6 +473,57 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
     projection_matrix = glm::perspective(glm::radians(FOV), (float) width / (float) height, 0.01f, 100.0f);
+
+    /*----- Post Process RBO/Textures Resize Begin ----- */
+    glDeleteRenderbuffers(1, &depthRBO);
+    glGenRenderbuffers(1, &depthRBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, depthRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, width, height);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBO);
+    glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRBO);
+
+    glActiveTexture(GL_TEXTURE1);
+    glDeleteTextures(1, &FBODataTexture);
+    glGenTextures(1, &FBODataTexture);
+    glBindTexture(GL_TEXTURE_2D, FBODataTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FBODataTexture, 0);
+
+    /*----- Bloom Effect Textures Resize Begin ----- */
+    glActiveTexture(GL_TEXTURE2);
+    glDeleteTextures(1, &BloomEffect_BrightColor_Texture);
+    glGenTextures(1, &BloomEffect_BrightColor_Texture);
+    glBindTexture(GL_TEXTURE_2D, BloomEffect_BrightColor_Texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, BloomEffect_BrightColor_Texture, 0);
+
+    glDeleteTextures(2, BloomEffect_pingpongBuffer);
+    glGenTextures(2, BloomEffect_pingpongBuffer);
+    for (unsigned int i = 0; i < 2; i++)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, BloomEffect_pingpongFBO[i]);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, BloomEffect_pingpongBuffer[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, BloomEffect_pingpongBuffer[i], 0);
+    }
+    /*----- Bloom Effect Textures Resize End ----- */
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    /*----- Post Process RBO/Textures Resize End ----- */
 
     // Re-render the scene because the current frame was drawn for the old resolution
     draw();

@@ -6,9 +6,6 @@ in vec2 textureCoordinate;
 in vec3 shadowPosition;
 
 layout (location = 0) out vec4 color;
-/*----- Bloom Effect Layout Begin ----- */
-layout (location = 1) out vec4 BloomEffect_BrightColor;
-/*----- Bloom Effect Layout End ----- */
 
 struct Light {
     vec3 position;
@@ -39,10 +36,8 @@ uniform vec3 cameraPosition;
 uniform Light light;
 uniform Material material;
 
-/*----- Bloom Effect Uniforms Begin ----- */
+/*----- Bloom Effect ----- */
 uniform vec3 emissive_sphere_position;
-uniform bool isLightObject;
-/*----- Bloom Effect Uniforms End ----- */
 
 uniform Config config;
 
@@ -104,21 +99,13 @@ void main(void)
     }
 
     if (config.bloom) {
-        /*----- Bloom Effect Begin ----- */
+        /*----- Bloom Effect ----- */
         float emissive_sphere_distance = length(emissive_sphere_position - position);
         float attenuation = 1.0 / (1.0 + 0.7 * emissive_sphere_distance + 0.14 * (emissive_sphere_distance * emissive_sphere_distance)); 
         //ambient  *= attenuation;
         //diffuse  *= attenuation;
         //specular *= attenuation;
         color = vec4(color.xyz*(1+attenuation), 1.0);
-        if (isLightObject == true) color = vec4(vec3(2.0), 1.0);
-
-        float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
-        if(brightness > 1.0)
-            BloomEffect_BrightColor = vec4(color.rgb, 1.0);
-        else
-            BloomEffect_BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
-        /*----- Bloom Effect End -----*/
     }
 
     if (config.deferredShading) {
