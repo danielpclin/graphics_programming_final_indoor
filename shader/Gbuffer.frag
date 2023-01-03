@@ -13,7 +13,7 @@ in VS_OUT
 } fs_in;
 
 uniform bool hasTexture;
-layout (binding = 0) uniform sampler2D tex_diffuse;
+uniform sampler2D tex_diffuse;
 // layout (binding = 1) uniform sampler2D tex_normal_map;      
 
 struct Material {

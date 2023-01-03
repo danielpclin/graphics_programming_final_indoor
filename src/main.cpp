@@ -35,7 +35,6 @@ Model *gray_room;
 Model *trice;
 glm::mat4 model_matrix(1.0f);
 glm::mat4 projection_matrix(1.0f);
-GLuint depthMap;
 GLuint depthMapFBO;
 GLuint depthMap;
 GLuint frameVAO;
@@ -338,26 +337,30 @@ void draw() {
     gbufferShader->setMat4("model", model_matrix);
     gbufferShader->setMat4("view", camera->getViewMatrix());
     gbufferShader->setMat4("projection", projection_matrix);
+    glActiveTexture(GL_TEXTURE0);
     for (auto& mesh : gray_room->meshes) {
         glBindVertexArray(mesh.vao);
         gbufferShader->setBool("hasTexture", gray_room->materials[mesh.materialID].hasTexture);
-        gbufferShader->setInt("tex_diffuse", gray_room->materials[mesh.materialID].textureID);
+        gbufferShader->setInt("tex_diffuse", 0);
         gbufferShader->setVec3("material.ambient", gray_room->materials[mesh.materialID].ambientColor);
         gbufferShader->setVec3("material.diffuse", gray_room->materials[mesh.materialID].diffuseColor);
         gbufferShader->setVec3("material.specular", gray_room->materials[mesh.materialID].specularColor);
         gbufferShader->setFloat("material.shininess", gray_room->materials[mesh.materialID].shininess);
+        glBindTexture(GL_TEXTURE_2D, gray_room->materials[mesh.materialID].textureID);
         glDrawElements(GL_TRIANGLES, (GLint)mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid*) nullptr);
     }
 
+    glActiveTexture(GL_TEXTURE0);
     gbufferShader->setMat4("model", glm::scale(glm::translate(glm::mat4(1.0), glm::vec3(2.05, 0.628725, -1.9)), glm::vec3(0.001)));
     for (auto& mesh : trice->meshes) {
         glBindVertexArray(mesh.vao);
         gbufferShader->setBool("hasTexture", trice->materials[mesh.materialID].hasTexture);
-        gbufferShader->setInt("tex_diffuse", trice->materials[mesh.materialID].textureID);
+        gbufferShader->setInt("tex_diffuse", 0);
         gbufferShader->setVec3("material.ambient", trice->materials[mesh.materialID].ambientColor);
         gbufferShader->setVec3("material.diffuse", trice->materials[mesh.materialID].diffuseColor);
         gbufferShader->setVec3("material.specular", trice->materials[mesh.materialID].specularColor);
         gbufferShader->setFloat("material.shininess", trice->materials[mesh.materialID].shininess);
+        glBindTexture(GL_TEXTURE_2D, trice->materials[mesh.materialID].textureID);
         glDrawElements(GL_TRIANGLES, (GLint)mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid*) nullptr);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -407,7 +410,7 @@ void draw() {
         shader->setVec3("material.diffuse", trice->materials[mesh.materialID].diffuseColor);
         shader->setVec3("material.specular", trice->materials[mesh.materialID].specularColor);
         shader->setFloat("material.shininess", trice->materials[mesh.materialID].shininess);
-        glBindTexture(GL_TEXTURE_2D, gray_room->materials[mesh.materialID].textureID);
+        glBindTexture(GL_TEXTURE_2D, trice->materials[mesh.materialID].textureID);
         glDrawElements(GL_TRIANGLES, (GLint) mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid *) nullptr);
     }
 
