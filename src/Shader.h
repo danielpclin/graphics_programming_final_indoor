@@ -25,6 +25,8 @@ public:
     // ------------------------------------------------------------------------
     void setInt(const std::string &name, int value) const;
     // ------------------------------------------------------------------------
+    void setIntArray(const std::string& name, int* value, int count) const;
+    // ------------------------------------------------------------------------
     void setFloat(const std::string &name, float value) const;
     // ------------------------------------------------------------------------
     void setVec2(const std::string &name, const glm::vec2 &value) const;

@@ -30,13 +30,19 @@ Camera *camera;
 Shader *shader;
 Shader *shadowMapShader;
 Shader *screenShader;
+Shader* gbufferShader;
 Model *gray_room;
 Model *trice;
 glm::mat4 model_matrix(1.0f);
 glm::mat4 projection_matrix(1.0f);
-GLuint depthMap;
 GLuint depthMapFBO;
+GLuint depthMap;
 GLuint frameVAO;
+
+/*----- G Buffer Begin ----- */
+GLuint GBufferFBO;
+GLuint GBufferTexture[6];
+/*----- G Buffer End ----- */
 
 /*----- Post Process Parameters Begin ----- */
 GLuint FBO;
@@ -66,6 +72,7 @@ struct RenderConfig {
     bool blinn_phong = true;
     bool directional_light_shadow = true;
     bool deferred_shading = true;
+    int  gbuffer = 0;
     bool normal_mapping = true;
     bool bloom = false;
 } renderConfig;
@@ -89,15 +96,18 @@ void init() {
     shader = new Shader("shader/texture.vert", "shader/texture.frag");
     shadowMapShader = new Shader("shader/shadowMap.vert", "shader/shadowMap.frag");
     screenShader = new Shader("shader/screen.vert", "shader/screen.frag");
+    gbufferShader = new Shader("shader/GBuffer.vert", "shader/GBuffer.frag");
     /*----- Bloom Effect Object/Shader Begin ----- */
     emissive_sphere = new Model("assets/indoor/sphere.obj");
     BloomEffect_BlurShader = new Shader("shader/BloomEffectBlur.vert", "shader/BloomEffectBlur.frag");
     /*----- Bloom Effect Object/Shader End ----- */
 
+
     // directional light shadow
     glGenFramebuffers(1, &depthMapFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 
+    GLuint depthMap;
     glGenTextures(1, &depthMap);
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -165,6 +175,44 @@ void init() {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, BloomEffect_pingpongBuffer[i], 0);
     }
     /*----- Bloom Effect FBO/Blur Texture Init. End ----- */
+    /*----- G Buffer Init. Begin ----- */
+    glGenFramebuffers(1, &GBufferFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, GBufferFBO);
+    glGenTextures(6, GBufferTexture);
+    glBindTexture(GL_TEXTURE_2D, GBufferTexture[0]); // For Diffuse
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, GBufferTexture[1]); // For Normal
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, GBufferTexture[2]); // For Coordinate
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, GBufferTexture[3]); // For Ambient
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, GBufferTexture[4]); // For Specular
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, GBufferTexture[5]); //For Depth
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, WIDTH, HEIGHT);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, GBufferTexture[0], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, GBufferTexture[1], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, GBufferTexture[2], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, GBufferTexture[3], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, GBufferTexture[4], 0);
+    unsigned int attachments[5] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
+    glDrawBuffers(5, attachments);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D, GBufferTexture[5], 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    /*----- G Buffer Init. End ----- */
 
     // screen frame VAO
     GLuint frameVBO;
@@ -232,6 +280,18 @@ void drawToScreen() {
 
     /*----- Post Process Textures Binding End ----- */
 
+    int gbuffer_tex_idx[5];
+    for (int i = 0; i < 5; i++)
+        gbuffer_tex_idx[i] = i + 4;
+    screenShader->setIntArray("gtex", gbuffer_tex_idx, 5);
+    screenShader->setInt("gbufferidx", renderConfig.gbuffer);
+    for (int i = 0; i < 5; i++)
+    {
+        glActiveTexture(GL_TEXTURE4 + i);
+        glBindTexture(GL_TEXTURE_2D, GBufferTexture[i]);
+        //glBindTextureUnit(i + 5, GBufferTexture[i]);
+    }
+
 
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 }
@@ -269,6 +329,41 @@ void draw() {
         glDrawElements(GL_TRIANGLES, (GLint) mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid *) nullptr);
     }
 
+    // Deferred  Shading
+    glBindFramebuffer(GL_FRAMEBUFFER, GBufferFBO);
+    glViewport(0, 0, WIDTH, HEIGHT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    gbufferShader->use();
+    gbufferShader->setMat4("model", model_matrix);
+    gbufferShader->setMat4("view", camera->getViewMatrix());
+    gbufferShader->setMat4("projection", projection_matrix);
+    glActiveTexture(GL_TEXTURE0);
+    for (auto& mesh : gray_room->meshes) {
+        glBindVertexArray(mesh.vao);
+        gbufferShader->setBool("hasTexture", gray_room->materials[mesh.materialID].hasTexture);
+        gbufferShader->setInt("tex_diffuse", 0);
+        gbufferShader->setVec3("material.ambient", gray_room->materials[mesh.materialID].ambientColor);
+        gbufferShader->setVec3("material.diffuse", gray_room->materials[mesh.materialID].diffuseColor);
+        gbufferShader->setVec3("material.specular", gray_room->materials[mesh.materialID].specularColor);
+        gbufferShader->setFloat("material.shininess", gray_room->materials[mesh.materialID].shininess);
+        glBindTexture(GL_TEXTURE_2D, gray_room->materials[mesh.materialID].textureID);
+        glDrawElements(GL_TRIANGLES, (GLint)mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid*) nullptr);
+    }
+
+    glActiveTexture(GL_TEXTURE0);
+    gbufferShader->setMat4("model", glm::scale(glm::translate(glm::mat4(1.0), glm::vec3(2.05, 0.628725, -1.9)), glm::vec3(0.001)));
+    for (auto& mesh : trice->meshes) {
+        glBindVertexArray(mesh.vao);
+        gbufferShader->setBool("hasTexture", trice->materials[mesh.materialID].hasTexture);
+        gbufferShader->setInt("tex_diffuse", 0);
+        gbufferShader->setVec3("material.ambient", trice->materials[mesh.materialID].ambientColor);
+        gbufferShader->setVec3("material.diffuse", trice->materials[mesh.materialID].diffuseColor);
+        gbufferShader->setVec3("material.specular", trice->materials[mesh.materialID].specularColor);
+        gbufferShader->setFloat("material.shininess", trice->materials[mesh.materialID].shininess);
+        glBindTexture(GL_TEXTURE_2D, trice->materials[mesh.materialID].textureID);
+        glDrawElements(GL_TRIANGLES, (GLint)mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid*) nullptr);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     /*----- Post Process Render Setting Begin ----- */
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBO);
     unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
@@ -314,7 +409,7 @@ void draw() {
         shader->setVec3("material.diffuse", trice->materials[mesh.materialID].diffuseColor);
         shader->setVec3("material.specular", trice->materials[mesh.materialID].specularColor);
         shader->setFloat("material.shininess", trice->materials[mesh.materialID].shininess);
-        glBindTexture(GL_TEXTURE_2D, gray_room->materials[mesh.materialID].textureID);
+        glBindTexture(GL_TEXTURE_2D, trice->materials[mesh.materialID].textureID);
         glDrawElements(GL_TRIANGLES, (GLint) mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid *) nullptr);
     }
 
@@ -384,6 +479,10 @@ void prepare_imgui() {
         ImGui::Checkbox("Blinn Phong", &renderConfig.blinn_phong);
         ImGui::Checkbox("Directional light shadow", &renderConfig.directional_light_shadow);
         ImGui::Checkbox("Deferred shading", &renderConfig.deferred_shading);
+        if (renderConfig.deferred_shading)
+        {
+            ImGui::SliderInt("G Buffers", &renderConfig.gbuffer, 0, 4);
+        }
         ImGui::Checkbox("Normal mapping", &renderConfig.normal_mapping);
         /*----- Bloom Effect ----- */
         ImGui::Checkbox("Bloom", &renderConfig.bloom);
