@@ -282,12 +282,12 @@ void drawToScreen() {
 
     int gbuffer_tex_idx[5];
     for (int i = 0; i < 5; i++)
-        gbuffer_tex_idx[i] = GBufferTexture[i];
+        gbuffer_tex_idx[i] = i + 4;
     screenShader->setIntArray("gtex", gbuffer_tex_idx, 5);
     screenShader->setInt("gbufferidx", renderConfig.gbuffer);
     for (int i = 0; i < 5; i++)
     {
-        glActiveTexture(GL_TEXTURE0 + GBufferTexture[i]);
+        glActiveTexture(GL_TEXTURE4 + i);
         glBindTexture(GL_TEXTURE_2D, GBufferTexture[i]);
         //glBindTextureUnit(i + 5, GBufferTexture[i]);
     }
