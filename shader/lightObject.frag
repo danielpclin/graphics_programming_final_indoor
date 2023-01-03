@@ -109,7 +109,7 @@ void main(void)
     }
 
     if (config.deferredShading) {
-
+        
     }
 
     if (config.normalMapping) {
