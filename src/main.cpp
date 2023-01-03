@@ -190,10 +190,10 @@ void init() {
 
     // setup shaders
     shader->use();
-    shader->setVec3("light.position", glm::vec3(-2.845, 2.028, -1.293));
-    shader->setVec3("light.ambient", glm::vec3(0.1));
-    shader->setVec3("light.diffuse", glm::vec3(0.7));
-    shader->setVec3("light.specular", glm::vec3(0.2));
+    shader->setVec3("directionalLight.position", glm::vec3(-2.845, 2.028, -1.293));
+    shader->setVec3("directionalLight.ambient", glm::vec3(0.1));
+    shader->setVec3("directionalLight.diffuse", glm::vec3(0.7));
+    shader->setVec3("directionalLight.specular", glm::vec3(0.2));
     shader->setInt("shadowMap", 4);
     shader->setInt("textureMap", 0);
 
@@ -310,7 +310,6 @@ void draw() {
     for (auto &mesh: trice->meshes) {
         glBindVertexArray(mesh.vao);
         shader->setBool("hasTexture", trice->materials[mesh.materialID].hasTexture);
-        shader->setInt("textureMap", 0);
         shader->setVec3("material.ambient", trice->materials[mesh.materialID].ambientColor);
         shader->setVec3("material.diffuse", trice->materials[mesh.materialID].diffuseColor);
         shader->setVec3("material.specular", trice->materials[mesh.materialID].specularColor);
