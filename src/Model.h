@@ -27,12 +27,14 @@ public:
         glm::vec3 color;
 	};
 	struct Material {
-        bool hasTexture = false;
+		bool hasTexture = false;
+		bool hasNormalMap = false;
         glm::vec3 ambientColor;
         glm::vec3 diffuseColor;
         glm::vec3 specularColor;
         float shininess;
 		GLuint textureID;
+		GLuint NormalMapID;
 	};
 	std::unordered_map<int, Material> materials;
 private:
@@ -41,7 +43,8 @@ private:
 	static Mesh processMesh(const aiMesh *mesh, const aiScene *scene);
 	void processNode(aiNode *node, const aiScene *scene);
 	void processMaterial(const aiScene *scene);
-	GLuint loadTexture(std::string const &pFile);
+	GLuint loadTexture(std::string const& pFile);
+	GLuint loadNormalMap(std::string const &pFile);
 
 public:
 	std::vector<Mesh> meshes;

@@ -4,6 +4,7 @@ in vec3 position;
 in vec3 normal;
 in vec2 textureCoordinate;
 in vec3 shadowPosition;
+in mat3 TBN;
 
 layout (location = 0) out vec4 color;
 //*----- Bloom Effect Layout Begin ----- */
@@ -34,6 +35,8 @@ struct Config {
 
 uniform bool hasTexture;
 uniform sampler2D textureMap;
+uniform bool hasNormalMap;
+uniform sampler2D NormalMap;
 uniform sampler2D shadowMap;
 uniform vec3 cameraPosition;
 uniform Light light;
@@ -54,7 +57,14 @@ float random(vec4 seed4) {
 void main(void)
 {
     vec4 textureColor = texture(textureMap, textureCoordinate).rgba;
-    vec3 normalizedNormal = normalize(normal);
+    vec3 normalizedNormal;
+    normalizedNormal = normalize(normal);
+    if (hasNormalMap)
+    {
+        normalizedNormal = texture(NormalMap, textureCoordinate).rgb;
+        normalizedNormal = normalizedNormal * 2.0 - 1.0;   
+        normalizedNormal = normalize(TBN * normalizedNormal);
+    }
     vec3 lightDirection = normalize(light.position - position);
     vec3 viewDirection = normalize(cameraPosition - position);
     vec3 halfwayDirection = normalize(lightDirection + viewDirection);

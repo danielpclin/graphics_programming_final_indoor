@@ -10,10 +10,13 @@ in VS_OUT
     vec3 normal; 
     vec3 tangent; 
     vec2 texcoord0; 
+    mat3 TBN;
 } fs_in;
 
 uniform bool hasTexture;
 uniform sampler2D tex_diffuse;
+uniform bool hasNormalMap;
+uniform sampler2D NormalMap;
 // layout (binding = 1) uniform sampler2D tex_normal_map;      
 
 struct Material {
@@ -26,12 +29,6 @@ struct Material {
 uniform Material material;
 void main(void)
 { 
-    // vec3 N = normalize(fs_in.normal);
-    // vec3 T = normalize(fs_in.tangent);
-    // vec3 B = cross(N, T);
-    // mat3 TBN = mat3(T, B, N);
-    // vec3 nm = texture(tex_normal_map,fs_in.texcoord0).xyz * 2.0 - 1.0;
-    // nm = TBN * normalize(nm); 
 
     vec3 nm = fs_in.normal;
     vec4 outvec2 = vec4(0);
@@ -41,6 +38,14 @@ void main(void)
         color0 = vec4(texture(tex_diffuse, fs_in.texcoord0).rgb, 1.0); // diffuse
     else
         color0 = vec4(material.diffuse, 1.0);
+    if (hasNormalMap)
+    {
+        vec3 normalizedNormal;
+        normalizedNormal = texture(NormalMap, fs_in.texcoord0).xyz;
+        normalizedNormal = normalizedNormal * 2.0 - vec3(1.0);   
+        normalizedNormal = normalize(fs_in.TBN * normalizedNormal);
+        nm = normalizedNormal;
+    }
     color1 = vec4(nm,1.0); // normal
     color3 = vec4(material.ambient, 1.0);
     color4 = vec4(material.specular, 1.0);
