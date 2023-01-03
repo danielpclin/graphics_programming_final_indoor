@@ -16,6 +16,14 @@ uniform sampler2D colorTexture;
 uniform sampler2D BloomEffect_HDR_Texture;
 uniform sampler2D BloomEffect_Blur_Texture;
 
+/*----- Deferred Shading -----*/
+//g buffers
+uniform sampler2D gtex[5];
+
+uniform int gbufferidx;
+
+
+
 void main()
 {
 	vec3 color = vec3(texture(colorTexture, TexCoords));
@@ -35,6 +43,15 @@ void main()
         // also gamma correct while we're at it       
         result = pow(result, vec3(1.0 / gamma));
         FragColor = vec4(color + result, 1.0);
+    }
+
+    if (config.deferredShading) {
+        vec3 gcolor = texture(gtex[gbufferidx], TexCoords).xyz;
+        if (gbufferidx == 1)
+            gcolor = normalize(gcolor) * 0.5 + 0.5;
+        if (gbufferidx == 2)
+            gcolor = normalize(gcolor) * 0.5 + 0.5;
+        FragColor = vec4(gcolor, 1.0);
     }
     /*----- Bloom Effect End -----*/
 
