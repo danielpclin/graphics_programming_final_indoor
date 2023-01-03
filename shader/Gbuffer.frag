@@ -34,10 +34,15 @@ void main(void)
     vec4 outvec2 = vec4(0);
     outvec2.xyz = fs_in.ws_coords;
     outvec2.w = 60.0; // specular_power
-    if (hasTexture)
-        color0 = vec4(texture(tex_diffuse, fs_in.texcoord0).rgb, 1.0); // diffuse
-    else
+    if (hasTexture) {
+        vec4 temp = texture(tex_diffuse, fs_in.texcoord0);
+        if (temp.a < 0.5) {
+            discard;
+        }
+        color0 = vec4(temp.rgb, 1.0); // diffuse
+    } else {
         color0 = vec4(material.diffuse, 1.0);
+    }
     if (hasNormalMap)
     {
         vec3 normalizedNormal;

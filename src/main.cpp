@@ -71,7 +71,7 @@ bool capture_mouse = false;
 struct RenderConfig {
     bool blinn_phong = true;
     bool directional_light_shadow = true;
-    bool deferred_shading = true;
+    bool deferred_shading = false;
     int  gbuffer = 0;
     bool normal_mapping = true;
     bool bloom = false;
@@ -238,10 +238,10 @@ void init() {
 
     // setup shaders
     shader->use();
-    shader->setVec3("light.position", glm::vec3(-2.845, 2.028, -1.293));
-    shader->setVec3("light.ambient", glm::vec3(0.1));
-    shader->setVec3("light.diffuse", glm::vec3(0.7));
-    shader->setVec3("light.specular", glm::vec3(0.2));
+    shader->setVec3("directionalLight.position", glm::vec3(-2.845, 2.028, -1.293));
+    shader->setVec3("directionalLight.ambient", glm::vec3(0.1));
+    shader->setVec3("directionalLight.diffuse", glm::vec3(0.7));
+    shader->setVec3("directionalLight.specular", glm::vec3(0.2));
     shader->setInt("shadowMap", 4);
     shader->setInt("textureMap", 0);
 
@@ -290,10 +290,7 @@ void drawToScreen() {
     {
         glActiveTexture(GL_TEXTURE5 + i);
         glBindTexture(GL_TEXTURE_2D, GBufferTexture[i]);
-        //glBindTextureUnit(i + 5, GBufferTexture[i]);
     }
-
-
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
@@ -494,17 +491,19 @@ void prepare_imgui() {
         ImGui::Checkbox("Blinn Phong", &renderConfig.blinn_phong);
         ImGui::Checkbox("Directional light shadow", &renderConfig.directional_light_shadow);
         ImGui::Checkbox("Deferred shading", &renderConfig.deferred_shading);
-        if (renderConfig.deferred_shading)
-        {
+        if (renderConfig.deferred_shading) {
             ImGui::SliderInt("G Buffers", &renderConfig.gbuffer, 0, 4);
         }
         ImGui::Checkbox("Normal mapping", &renderConfig.normal_mapping);
         /*----- Bloom Effect ----- */
         ImGui::Checkbox("Bloom", &renderConfig.bloom);
-        ImGui::SliderFloat("X", &emissive_sphere_position.x, 0.0f, 4.0f);
-        ImGui::SliderFloat("Y", &emissive_sphere_position.y, 0.0f, 4.0f);
-        ImGui::SliderFloat("Z", &emissive_sphere_position.z, -4.0f, 1.0f);
+        if (renderConfig.bloom) {
+            ImGui::SliderFloat("X", &emissive_sphere_position.x, 0.0f, 4.0f);
+            ImGui::SliderFloat("Y", &emissive_sphere_position.y, 0.0f, 4.0f);
+            ImGui::SliderFloat("Z", &emissive_sphere_position.z, -4.0f, 1.0f);
+        }
 
+        ImGui::Separator();
         ImGui::Text("Camera position %.2f, %.2f, %.2f", camera->position.x, camera->position.y, camera->position.z);
         ImGui::Text("Camera yaw: %.2f°, pitch: %.2f°", camera->yaw, camera->pitch);
         ImGui::InputFloat3("Position", (float *)&cameraPosition);

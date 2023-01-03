@@ -11,11 +11,22 @@ layout (location = 0) out vec4 color;
 layout (location = 1) out vec4 BloomEffect_BrightColor;
 //*----- Bloom Effect Layout End ----- */
 
-struct Light {
+struct DirectionalLight {
     vec3 position;
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+};
+
+struct PointLight {
+    vec3 position;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+
+    float constant;
+    float linear;
+    float quadratic;
 };
 
 struct Material {
@@ -39,13 +50,14 @@ uniform bool hasNormalMap;
 uniform sampler2D NormalMap;
 uniform sampler2D shadowMap;
 uniform vec3 cameraPosition;
-uniform Light light;
+uniform DirectionalLight directionalLight;
+uniform PointLight pointLight; // TODO add point light
 uniform Material material;
 
-//*----- Bloom Effect Uniforms Begin ----- */
-uniform vec3 emissive_sphere_position;
+// /*----- Bloom Effect Uniforms Begin ----- */
+uniform vec3 emissive_sphere_position; // TODO replace with pointLight.position
 uniform bool isLightObject;
-//*----- Bloom Effect Uniforms End ----- */
+// /*----- Bloom Effect Uniforms End ----- */
 
 uniform Config config;
 
@@ -67,7 +79,8 @@ void main(void)
     }
     vec3 lightDirection = normalize(light.position - position);
     vec3 viewDirection = normalize(cameraPosition - position);
-    vec3 halfwayDirection = normalize(lightDirection + viewDirection);
+    vec3 directionalLight_LightDirection = normalize(directionalLight.position - position);
+    vec3 directionalLight_HalfwayDirection = normalize(directionalLight_LightDirection + viewDirection);
 
     if (textureColor.a < 0.5)
         discard;
@@ -75,23 +88,21 @@ void main(void)
     if (!hasTexture)
         textureColor = vec4(1.0);
 
-    // ambient
-    vec3 ambient = material.diffuse;
-
-    // diffuse
-    vec3 diffuse = material.diffuse;
-
-    // specular
-    vec3 specular = material.diffuse;
+    // ambient diffuse specular
+    vec3 ambient = vec3(0.0);
+    vec3 diffuse = textureColor.rgb * material.diffuse;
+    vec3 specular = vec3(0.0);
+    color = vec4(diffuse, 1.0);
 
     if (config.blinnPhong) {
-        ambient = material.ambient * textureColor.rgb;
-        diffuse = max(dot(normalizedNormal, lightDirection), 0.0) * textureColor.rgb * material.diffuse;
-        specular = pow(max(dot(normalizedNormal, halfwayDirection), 0.0), material.shininess) * material.specular;
+        ambient = material.ambient * textureColor.rgb * directionalLight.ambient;
+        diffuse = max(dot(normalizedNormal, directionalLight_LightDirection), 0.0) * textureColor.rgb * material.diffuse * directionalLight.diffuse;
+        specular = pow(max(dot(normalizedNormal, directionalLight_HalfwayDirection), 0.0), material.shininess) * material.specular * directionalLight.specular;
+        color = vec4((ambient + diffuse + specular), 1.0);
     }
 
     // directional light shadow
-    float bias = max(0.06 * (1.0 - dot(normalizedNormal, lightDirection)), 0.01);
+    float bias = max(0.06 * (1.0 - dot(normalizedNormal, directionalLight_LightDirection)), 0.01);
 
     float shadow = 0.0;
     vec2 texelSize = 0.4 / textureSize(shadowMap, 0);
@@ -104,23 +115,15 @@ void main(void)
     shadow /= 121.0;
     shadow = 1 - shadow;
 
-    ambient = ambient * light.ambient;
-    diffuse = diffuse * light.diffuse;
-    specular = specular * light.specular;
-    color = vec4((ambient + diffuse + specular), 1.0);
-
     if (config.directionalLightShadow) {
         color = vec4((ambient + shadow * (diffuse + specular)), 1.0);
     }
 
+    // /*----- Bloom Effect Begin ----- */ TODO add point light
     if (config.bloom) {
-        //*----- Bloom Effect Begin ----- */
         float emissive_sphere_distance = length(emissive_sphere_position - position);
-        float attenuation = 1.0 / (1.0 + 0.7 * emissive_sphere_distance + 0.14 * (emissive_sphere_distance * emissive_sphere_distance)); 
-        //ambient  *= attenuation;
-        //diffuse  *= attenuation;
-        //specular *= attenuation;
-        color = vec4(color.xyz*(1+attenuation), 1.0);
+        float attenuation = 1.0 / (1.0 + 0.7 * emissive_sphere_distance + 0.14 * (emissive_sphere_distance * emissive_sphere_distance));
+        color = vec4(color.xyz * (1 + attenuation), 1.0);
         if (isLightObject == true) color = vec4(vec3(2.0), 1.0);
 
         float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
@@ -128,8 +131,8 @@ void main(void)
             BloomEffect_BrightColor = vec4(color.rgb, 1.0);
         else
             BloomEffect_BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
-        //*----- Bloom Effect End -----*/
     }
+    // /*----- Bloom Effect End -----*/
 
     if (config.deferredShading) {
 
