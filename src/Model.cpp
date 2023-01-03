@@ -135,7 +135,7 @@ GLuint Model::loadTexture(const std::string &pFile) {
     unsigned char *data = stbi_load((directory + '/' + pFile).c_str(), &width, &height, &nrComponents, 4);
     if (data)
     {
-        glActiveTexture(GL_TEXTURE0 + textureID);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureID);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
