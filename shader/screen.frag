@@ -37,4 +37,6 @@ void main()
         FragColor = vec4(color + result, 1.0);
     }
     /*----- Bloom Effect End -----*/
+
+
 }
