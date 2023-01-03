@@ -77,7 +77,7 @@ void main(void)
         normalizedNormal = normalizedNormal * 2.0 - 1.0;   
         normalizedNormal = normalize(TBN * normalizedNormal);
     }
-    vec3 lightDirection = normalize(light.position - position);
+    vec3 lightDirection = normalize(directionalLight.position - position);
     vec3 viewDirection = normalize(cameraPosition - position);
     vec3 directionalLight_LightDirection = normalize(directionalLight.position - position);
     vec3 directionalLight_HalfwayDirection = normalize(directionalLight_LightDirection + viewDirection);
