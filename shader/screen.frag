@@ -16,7 +16,7 @@ uniform sampler2D colorTexture;
 uniform sampler2D BloomEffect_HDR_Texture;
 uniform sampler2D BloomEffect_Blur_Texture;
 
-/*----- Deferred Shading -----*/
+// /*----- Deferred Shading -----*/
 //g buffers
 uniform sampler2D gtex[5];
 

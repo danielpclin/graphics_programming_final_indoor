@@ -56,6 +56,7 @@ glm::vec3 emissive_sphere_position = glm::vec3(1.87659, 0.4625, 0.103928);
 GLuint BloomEffect_HDR_FBO;
 GLuint BloomEffect_HDR_StencilBuffer;
 GLuint BloomEffect_HDR_Texture;
+glm::vec3 directionalLight_position = glm::vec3(-2.845, 2.028, -1.293);
 Shader* BloomEffect_BlurShader;
 GLuint BloomEffect_pingpongFBO[2];
 GLuint BloomEffect_pingpongBuffer[2];
@@ -113,7 +114,6 @@ void init() {
     glGenFramebuffers(1, &depthMapFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 
-    GLuint depthMap;
     glGenTextures(1, &depthMap);
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -245,7 +245,7 @@ void init() {
 
     // setup shaders
     shader->use();
-    shader->setVec3("directionalLight.position", glm::vec3(-2.845, 2.028, -1.293));
+    shader->setVec3("directionalLight.position", directionalLight_position);
     shader->setVec3("directionalLight.ambient", glm::vec3(0.1));
     shader->setVec3("directionalLight.diffuse", glm::vec3(0.7));
     shader->setVec3("directionalLight.specular", glm::vec3(0.2));
@@ -310,7 +310,7 @@ void draw() {
     // Shadow
     // Compute the MVP matrix from the light's point of view
     glm::mat4 depthProjectionMatrix = glm::ortho<float>(-5, 5, -5, 5, 0.1, 10);
-    glm::mat4 depthViewMatrix = glm::lookAt(glm::vec3(-2.845, 2.028, -1.293), glm::vec3(0.542, -0.141, -0.422), glm::vec3(0,1,0));
+    glm::mat4 depthViewMatrix = glm::lookAt(directionalLight_position, glm::vec3(0.542, -0.141, -0.422), glm::vec3(0, 1, 0));
     glm::mat4 depthVP = depthProjectionMatrix * depthViewMatrix;
 
     glm::mat4 biasMatrix(
@@ -398,6 +398,8 @@ void draw() {
     shader->setBool("config.deferredShading", renderConfig.deferred_shading);
     shader->setBool("config.normalMapping", renderConfig.normal_mapping);
     shader->setBool("config.NPR", renderConfig.NPR);
+    shader->setVec3("directionalLight.position", directionalLight_position);
+
     /*----- Bloom Effect Setting Begin ----- */
     if (renderConfig.bloom) shader->setVec3("emissive_sphere_position", emissive_sphere_position);
     /*----- Bloom Effect Setting End ----- */
@@ -524,10 +526,15 @@ void prepare_imgui() {
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
-
         ImGui::Checkbox("Demo Window", &show_demo_window); // Edit bools storing our window open/close state
         ImGui::Checkbox("Blinn Phong", &renderConfig.blinn_phong);
         ImGui::Checkbox("Directional light shadow", &renderConfig.directional_light_shadow);
+        if (renderConfig.directional_light_shadow) {
+            ImGui::SliderFloat("X", &directionalLight_position.x, -4.0f, -2.0f);
+            ImGui::SliderFloat("Y", &directionalLight_position.y, 1.0f, 4.0f);
+            ImGui::SliderFloat("Z", &directionalLight_position.z, -4.0f, 1.0f);
+        }
+
         ImGui::Checkbox("Deferred shading", &renderConfig.deferred_shading);
         if (renderConfig.deferred_shading) {
             ImGui::SliderInt("G Buffers", &renderConfig.gbuffer, 0, 4);
@@ -535,9 +542,9 @@ void prepare_imgui() {
         ImGui::Checkbox("Normal mapping", &renderConfig.normal_mapping);
         /*----- Bloom Effect ImGui Begin -----*/
         ImGui::Checkbox("Bloom", &renderConfig.bloom);
-        ImGui::SliderFloat("X", &emissive_sphere_position.x, 0.0f, 4.0f);
-        ImGui::SliderFloat("Y", &emissive_sphere_position.y, 0.0f, 4.0f);
-        ImGui::SliderFloat("Z", &emissive_sphere_position.z, -4.0f, 1.0f);
+        ImGui::SliderFloat("Point_Light_X", &emissive_sphere_position.x, 0.0f, 4.0f);
+        ImGui::SliderFloat("Point_Light_Y", &emissive_sphere_position.y, 0.0f, 4.0f);
+        ImGui::SliderFloat("Point_Light_Z", &emissive_sphere_position.z, -4.0f, 1.0f);
         /*----- Bloom Effect ImGui End -----*/
         /*----- NPR ImGui Begin -----*/
         ImGui::Checkbox("NPR", &renderConfig.NPR);
@@ -793,7 +800,6 @@ int main(int argc, char *argv[]) {
 
     glViewport(0, 0, width, height);
     projection_matrix = glm::perspective(glm::radians(FOV), (float) width / (float) height, 0.01f, 100.0f);
-//    projection_matrix = glm::ortho<float>(-5, 5, -5, 5,0.01f, 10.0f);
 
     init();
 

@@ -39,7 +39,7 @@ uniform vec3 cameraPosition;
 uniform Light light;
 uniform Material material;
 
-/*----- Bloom Effect ----- */
+// /*----- Bloom Effect ----- */
 uniform vec3 emissive_sphere_position;
 
 uniform Config config;
