@@ -13,16 +13,16 @@ out VS_OUT
     mat3 TBN;
 } vs_out;
 
-uniform mat4 projection; 
-uniform mat4 view; 
+uniform mat4 projection;
+uniform mat4 view;
 uniform mat4 model;
 
 void main(void)
 {
     mat4 mv_matrix = view * model; 
-    gl_Position = projection * mv_matrix * vec4(position, 1.0); 
+    gl_Position = projection * mv_matrix * vec4(position, 1.0);
     vs_out.ws_coords = (model * vec4(position, 1.0)).xyz;
-    vs_out.normal = mat3(transpose(inverse(model))) * normal; 
+    vs_out.normal = mat3(transpose(inverse(model))) * normal;
     // vs_out.normal = normal; 
     vs_out.tangent = tangent;
     vec3 T = normalize(vec3(model * vec4(tangent, 0.0)));

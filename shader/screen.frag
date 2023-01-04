@@ -30,7 +30,7 @@ void main()
 
     FragColor = vec4(color, 1.0);
 
-    /*----- Bloom Effect Begin ----- */
+    // /*----- Bloom Effect Begin ----- */
     if (config.bloom) {
         //FragColor = vec4(BloomEffect_HDR_Color, 1.0);
         const float gamma = 2.2;
@@ -44,6 +44,7 @@ void main()
         result = pow(result, vec3(1.0 / gamma));
         FragColor = vec4(color + result, 1.0);
     }
+    // /*----- Bloom Effect End -----*/
 
     if (config.deferredShading) {
         vec3 gcolor = texture(gtex[gbufferidx], TexCoords).xyz;
@@ -53,5 +54,4 @@ void main()
             gcolor = normalize(gcolor) * 0.5 + 0.5;
         FragColor = vec4(gcolor, 1.0);
     }
-    /*----- Bloom Effect End -----*/
 }
