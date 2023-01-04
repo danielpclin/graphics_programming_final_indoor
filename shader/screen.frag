@@ -16,7 +16,7 @@ uniform sampler2D colorTexture;
 uniform sampler2D BloomEffect_HDR_Texture;
 uniform sampler2D BloomEffect_Blur_Texture;
 
-/*----- Deferred Shading -----*/
+// /*----- Deferred Shading -----*/
 //g buffers
 uniform sampler2D gtex[5];
 
@@ -30,7 +30,7 @@ void main()
 
     FragColor = vec4(color, 1.0);
 
-    /*----- Bloom Effect Begin ----- */
+    // /*----- Bloom Effect Begin ----- */
     if (config.bloom) {
         //FragColor = vec4(BloomEffect_HDR_Color, 1.0);
         const float gamma = 2.2;
@@ -53,5 +53,5 @@ void main()
             gcolor = normalize(gcolor) * 0.5 + 0.5;
         FragColor = vec4(gcolor, 1.0);
     }
-    /*----- Bloom Effect End -----*/
+    // /*----- Bloom Effect End -----*/
 }
