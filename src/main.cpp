@@ -28,7 +28,7 @@ int HEIGHT = 900;
 
 Camera *camera;
 Shader *shader;
-Shader *shadowMapShader;
+Shader* shadowMapShader;
 Shader *screenShader;
 Shader* gbufferShader;
 Model *gray_room;
@@ -43,6 +43,12 @@ GLuint frameVAO;
 GLuint GBufferFBO;
 GLuint GBufferTexture[6];
 /*----- G Buffer End ----- */
+
+// Point Light Shadow
+GLuint pointShadowFBO;
+GLuint pointShadowDepthMap;
+Shader *pointLightShadowMapShader;
+//
 
 /*----- Post Process Parameters Begin ----- */
 GLuint FBO;
@@ -220,6 +226,26 @@ void init() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D, GBufferTexture[5], 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     /*----- G Buffer Init. End ----- */
+
+    // Point Light Shadow
+    glGenFramebuffers(1, &pointShadowFBO);
+    // create depth cubemap texture
+    glGenTextures(1, &pointShadowDepthMap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, pointShadowDepthMap);
+    for (unsigned int i = 0; i < 6; ++i)
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    // attach depth texture as FBO's depth buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, pointShadowFBO);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, pointShadowDepthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
 
     // screen frame VAO
     GLuint frameVBO;
