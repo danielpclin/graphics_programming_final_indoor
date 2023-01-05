@@ -56,6 +56,8 @@ uniform sampler2D textureMap;
 uniform bool hasNormalMap;
 uniform sampler2D NormalMap;
 uniform sampler2D shadowMap;
+uniform float farPlane;
+uniform samplerCube pointShadowMap;
 uniform sampler2D SSAO_Map;
 uniform vec3 cameraPosition;
 uniform DirectionalLight directionalLight;
@@ -63,10 +65,10 @@ uniform PointLight pointLight; // TODO add point light
 uniform Material material;
 uniform View view;
 
-// /*----- Bloom Effect Uniforms Begin ----- */
+//*----- Bloom Effect Uniforms Begin ----- */
 uniform vec3 emissive_sphere_position; // TODO replace with pointLight.position
 uniform bool isLightObject;
-// /*----- Bloom Effect Uniforms End ----- */
+//*----- Bloom Effect Uniforms End ----- */
 
 uniform Config config;
 
@@ -130,6 +132,8 @@ void main(void)
         color = vec4((ambient + shadow * (diffuse + specular)), 1.0);
     }
 
+    
+
     if (config.bloom) {
         // /*----- Bloom Effect Begin ----- */
         vec3 Bloom_lightDir = normalize(emissive_sphere_position - position);
@@ -149,7 +153,17 @@ void main(void)
         Bloom_ambient  *= attenuation;
         Bloom_diffuse  *= attenuation;
         Bloom_specular *= attenuation;
-        vec3 Bloom_color = Bloom_ambient + Bloom_diffuse + Bloom_specular;
+
+        // point light shadow
+        vec3 fragToLight = position - emissive_sphere_position;
+        float closestDepth = texture(pointShadowMap, fragToLight).r;
+        closestDepth *= farPlane;
+        float currentDepth = length(fragToLight);
+        bias = 0.05; // we use a much larger bias since depth is now in [near_plane, far_plane] range
+        shadow = currentDepth -  bias > closestDepth ? 1.0 : 0.0;  
+        shadow = (1.0 - shadow);
+        
+        vec3 Bloom_color = Bloom_ambient + Bloom_diffuse * shadow + Bloom_specular * shadow;
         color = vec4(color.xyz+Bloom_color, 1.0);
         if (isLightObject == true) color = vec4(vec3(2.0), 1.0);
         

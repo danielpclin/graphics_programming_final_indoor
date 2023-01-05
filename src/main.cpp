@@ -107,6 +107,7 @@ void init() {
     //Global Setting
     glClearColor(0.19, 0.19, 0.19, 1.0);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_STENCIL_TEST);
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
@@ -119,6 +120,7 @@ void init() {
     trice = new Model("assets/indoor/trice.obj");
     shader = new Shader("shader/texture.vert", "shader/texture.frag");
     shadowMapShader = new Shader("shader/shadowMap.vert", "shader/shadowMap.frag");
+    pointLightShadowMapShader = new Shader("shader/pointShadowMap.vert", "shader/pointShadowMap.frag", "shader/pointShadowMap.geom");
     screenShader = new Shader("shader/screen.vert", "shader/screen.frag");
     gbufferShader = new Shader("shader/GBuffer.vert", "shader/GBuffer.frag");
     /*----- Bloom Effect Object/Shader Begin ----- */
@@ -324,7 +326,6 @@ void init() {
 
     // Point Light Shadow
     glGenFramebuffers(1, &pointShadowFBO);
-    // create depth cubemap texture
     glGenTextures(1, &pointShadowDepthMap);
     glBindTexture(GL_TEXTURE_CUBE_MAP, pointShadowDepthMap);
     for (unsigned int i = 0; i < 6; ++i)
@@ -334,7 +335,6 @@ void init() {
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    // attach depth texture as FBO's depth buffer
     glBindFramebuffer(GL_FRAMEBUFFER, pointShadowFBO);
     glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, pointShadowDepthMap, 0);
     glDrawBuffer(GL_NONE);
@@ -461,6 +461,37 @@ void draw() {
         glDrawElements(GL_TRIANGLES, (GLint) mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid *) nullptr);
     }
 
+    // Point Light Shadow Pass
+    float near_plane = 0.22f;
+    float far_plane = 10.0f;
+    glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), 1.0f, near_plane, far_plane);
+    glm::mat4 shadowTransforms[6];
+    shadowTransforms[0] = shadowProj * glm::lookAt(emissive_sphere_position, emissive_sphere_position+ glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    shadowTransforms[1] = shadowProj * glm::lookAt(emissive_sphere_position, emissive_sphere_position+ glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    shadowTransforms[2] = shadowProj * glm::lookAt(emissive_sphere_position, emissive_sphere_position+ glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    shadowTransforms[3] = shadowProj * glm::lookAt(emissive_sphere_position, emissive_sphere_position+ glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+    shadowTransforms[4] = shadowProj * glm::lookAt(emissive_sphere_position, emissive_sphere_position+ glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    shadowTransforms[5] = shadowProj * glm::lookAt(emissive_sphere_position, emissive_sphere_position+ glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+
+    glViewport(0, 0, 1024, 1024);
+    glBindFramebuffer(GL_FRAMEBUFFER, pointShadowFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    pointLightShadowMapShader->use();
+    for (unsigned int i = 0; i < 6; ++i)
+        pointLightShadowMapShader->setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+    pointLightShadowMapShader->setFloat("far_plane", far_plane);
+    pointLightShadowMapShader->setVec3("lightPos", emissive_sphere_position);
+    pointLightShadowMapShader->setMat4("model", glm::mat4(1.0));
+    for (auto& mesh : gray_room->meshes) {
+        glBindVertexArray(mesh.vao);
+        glDrawElements(GL_TRIANGLES, (GLint)mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid*) nullptr);
+    }
+    pointLightShadowMapShader->setMat4("model", glm::scale(glm::translate(glm::mat4(1.0), glm::vec3(2.05, 0.628725, -1.9)), glm::vec3(0.001)));
+    for (auto& mesh : trice->meshes) {
+        glBindVertexArray(mesh.vao);
+        glDrawElements(GL_TRIANGLES, (GLint)mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid*) nullptr);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // Deferred  Shading
     glBindFramebuffer(GL_FRAMEBUFFER, GBufferFBO);
     glViewport(0, 0, WIDTH, HEIGHT);
@@ -553,6 +584,12 @@ void draw() {
     shader->setBool("config.normalMapping", renderConfig.normal_mapping);
     shader->setBool("config.NPR", renderConfig.NPR);
     shader->setVec3("directionalLight.position", directionalLight_position);
+
+    // point light shadow
+    shader->setFloat("farPlane", far_plane);
+    shader->setInt("pointShadowMap", 6);
+    glActiveTexture(GL_TEXTURE6);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, pointShadowDepthMap);
 
     /*----- Bloom Effect Setting Begin ----- */
     if (renderConfig.bloom) shader->setVec3("emissive_sphere_position", emissive_sphere_position);
