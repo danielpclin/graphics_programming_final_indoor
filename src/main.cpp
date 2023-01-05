@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <ctime>
 
 // include OpenGL
 #include "GL/glew.h"
@@ -139,6 +140,7 @@ void init() {
     glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthMap, 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
+    glActiveTexture(GL_TEXTURE0);
 
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "Framebuffer not ok" << std::endl;
@@ -164,7 +166,6 @@ void init() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
     // Kernel Generation
-    
     ssaoEffectShader->setUniformBlockBinding("SSAOKernals", 0);
 
     const int KERNEL_SIZE = 64;
@@ -671,9 +672,9 @@ void prepare_imgui() {
         ImGui::Checkbox("Blinn Phong", &renderConfig.blinn_phong);
         ImGui::Checkbox("Directional light shadow", &renderConfig.directional_light_shadow);
         if (renderConfig.directional_light_shadow) {
-            ImGui::SliderFloat("X", &directionalLight_position.x, -4.0f, -2.0f);
-            ImGui::SliderFloat("Y", &directionalLight_position.y, 1.0f, 4.0f);
-            ImGui::SliderFloat("Z", &directionalLight_position.z, -4.0f, 1.0f);
+            ImGui::SliderFloat("X##Directional_light", &directionalLight_position.x, -4.0f, -2.0f);
+            ImGui::SliderFloat("Y##Directional_light", &directionalLight_position.y, 1.0f, 4.0f);
+            ImGui::SliderFloat("Z##Directional_light", &directionalLight_position.z, -4.0f, 1.0f);
         }
 
         ImGui::Checkbox("Deferred shading", &renderConfig.deferred_shading);
@@ -683,9 +684,11 @@ void prepare_imgui() {
         ImGui::Checkbox("Normal mapping", &renderConfig.normal_mapping);
         /*----- Bloom Effect ImGui Begin -----*/
         ImGui::Checkbox("Bloom", &renderConfig.bloom);
-        ImGui::SliderFloat("Point_Light_X", &emissive_sphere_position.x, 0.0f, 4.0f);
-        ImGui::SliderFloat("Point_Light_Y", &emissive_sphere_position.y, 0.0f, 4.0f);
-        ImGui::SliderFloat("Point_Light_Z", &emissive_sphere_position.z, -4.0f, 1.0f);
+        if (renderConfig.bloom) {
+            ImGui::SliderFloat("X##Point_Light", &emissive_sphere_position.x, 0.0f, 4.0f);
+            ImGui::SliderFloat("Y##Point_Light", &emissive_sphere_position.y, 0.0f, 4.0f);
+            ImGui::SliderFloat("Z##Point_Light", &emissive_sphere_position.z, -4.0f, 1.0f);
+        }
         /*----- Bloom Effect ImGui End -----*/
 
         ImGui::Checkbox("SSAO", &renderConfig.SSAO);
