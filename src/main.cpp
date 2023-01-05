@@ -22,6 +22,7 @@
 #include "Shader.h"
 #include "Model.h"
 #include "Camera.h"
+#include "Area_Light_LTC.h"
 
 const float FOV = 72.0;
 int WIDTH = 1600;
@@ -73,6 +74,31 @@ GLuint uboSSAOkernel;
 
 /*----- SSAO Process Parameters End ----- */
 
+/*----- Light Area Parameters Begin ----- */
+struct LTC_matrices {
+    GLuint mat1;
+    GLuint mat2;
+};
+
+struct VertexAL {
+    glm::vec3 position;
+    glm::vec3 normal;
+    glm::vec2 texcoord;
+};
+
+VertexAL areaLightVertices[6] = {
+        { {-0.5f, 0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f} }, // 0 1 5 4
+        { {0.5f, 0.5f,  0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f} },
+        { {0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f} },
+        { {-0.5f, 0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f} },
+        { {0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f} },
+        { {-0.5f, -0.5f,0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f} }
+};
+LTC_matrices mLTC;
+glm::vec3 areaLightColor(0.8f, 0.6f, 0.0f);
+glm::vec3 areaLightPosition(1.0, 0.5, -0.5);
+/*----- Light Area Parameters End*/
+
 
 // Mouse variables
 float mouse_last_x = 0;
@@ -91,12 +117,49 @@ struct RenderConfig {
     bool bloom = false;
     bool NPR = false;
     bool SSAO = false;
+    bool Area_Light = false;
 } renderConfig;
 
 //imgui state
 bool show_demo_window = false;
 glm::vec3 cameraPosition;
 glm::vec3 cameraLookat;
+
+GLuint loadMTexture()
+{
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 64, 64,
+        0, GL_RGBA, GL_FLOAT, LTC1);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    return texture;
+}
+
+GLuint loadLUTTexture()
+{
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 64, 64,
+        0, GL_RGBA, GL_FLOAT, LTC2);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    return texture;
+}
 
 void init() {
     //Global Setting
@@ -318,6 +381,14 @@ void init() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     /*----- G Buffer Init. End ----- */
 
+    /*----- Area Light Init. Begin -----*/
+    // position (1.0, 0.5, -0.5)
+    
+    mLTC.mat1 = loadMTexture();
+    mLTC.mat2 = loadLUTTexture();
+
+    /*----- Area Light Init. End -----*/
+
     // screen frame VAO
     GLuint frameVBO;
     float frameVertices[] = {
@@ -531,6 +602,7 @@ void draw() {
     shader->setBool("config.deferredShading", renderConfig.deferred_shading);
     shader->setBool("config.normalMapping", renderConfig.normal_mapping);
     shader->setBool("config.NPR", renderConfig.NPR);
+    shader->setBool("config.areaLight", renderConfig.Area_Light);
     shader->setVec3("directionalLight.position", directionalLight_position);
 
     /*----- Bloom Effect Setting Begin ----- */
@@ -550,6 +622,25 @@ void draw() {
         glActiveTexture(GL_TEXTURE10);
         glBindTexture(GL_TEXTURE_2D, SSAO_Texture);
         shader->setInt("SSAO_Map", 10);
+    }
+
+    if (renderConfig.Area_Light) {
+        shader->setVec3("areaLight.points[0]", areaLightVertices[0].position);
+        shader->setVec3("areaLight.points[1]", areaLightVertices[1].position);
+        shader->setVec3("areaLight.points[2]", areaLightVertices[4].position);
+        shader->setVec3("areaLight.points[3]", areaLightVertices[5].position);
+        shader->setVec3("areaLight.color", areaLightColor);
+        shader->setFloat("areaLight.intensity", 2.0);
+        shader->setVec3("areaLightTranslate", areaLightPosition);
+        shader->setVec3("viewPosition", camera->position);
+
+        glActiveTexture(GL_TEXTURE11);
+        glBindTexture(GL_TEXTURE_2D, mLTC.mat1);
+        glActiveTexture(GL_TEXTURE12);
+        glBindTexture(GL_TEXTURE_2D, mLTC.mat2);
+
+        shader->setInt("LTC1", 11);
+        shader->setInt("LTC2", 12);
     }
 
     for (auto &mesh: gray_room->meshes) {
@@ -693,11 +784,22 @@ void prepare_imgui() {
         }
         /*----- Bloom Effect ImGui End -----*/
 
+        /*----- SSAO ImGui Begin -----*/
         ImGui::Checkbox("SSAO", &renderConfig.SSAO);
+        /*----- SSAO ImGui End -----*/
 
         /*----- NPR ImGui Begin -----*/
         ImGui::Checkbox("NPR", &renderConfig.NPR);
         /*----- NPR ImGui End -----*/
+
+        /*----- Area Light ImGui Begin -----*/
+        ImGui::Checkbox("Area Light", &renderConfig.Area_Light);
+        if (renderConfig.Area_Light) {
+            ImGui::SliderFloat("X##Area_Light", &areaLightPosition.x, 0.0, 4.0);
+            ImGui::SliderFloat("Y##Area_Light", &areaLightPosition.y, 0.5, 1.0);
+            ImGui::SliderFloat("Z##Area_Light", &areaLightPosition.z, 0.0, -2.0);
+        }
+        /*----- Area Light ImGui End -----*/
 
         ImGui::Separator();
         ImGui::Text("Camera position %.2f, %.2f, %.2f", camera->position.x, camera->position.y, camera->position.z);
