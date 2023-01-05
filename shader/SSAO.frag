@@ -3,8 +3,9 @@
 uniform sampler2D depthMap;
 uniform sampler2D normalMap;
 uniform sampler2D noiseMap;
-uniform mat4 vp; // view projection matrix
-uniform mat4 invvp; // inverse of vp
+uniform mat4 invvp;
+uniform mat4 vp;
+uniform vec2 noise_scale;
 
 layout(std140) uniform SSAOKernals
 {
@@ -18,25 +19,25 @@ in VertexData
 
 layout(location = 0) out vec4 fragAO;
 
-void main()
-{
-	float depth = texture(depthMap, vertexData.texcoord).r;
-	vec4 position = invvp * vec4(vec3(vertexData.texcoord, depth) * 2.0 - 1.0, 1.0);
-	position /= position.w; // unproject the input fragment to world space
+void main()                                                                                     
+{                                                                                               
+    float depth = texture(depthMap, vertexData.texcoord).r;
+	if(depth == 1.0) {
+		discard;
+	}
 
-	// get normal from normal map
-	vec3 normal = texture(normalMap, vertexData.texcoord).rgb * 2.0 - 1.0;
+	vec4 position = invvp * vec4(vec3(vertexData.texcoord, depth) * 2.0 - 1.0, 1.0);
+	position /= position.w;
+
+	vec3 normal = texture(normalMap, vertexData.texcoord).rgb;
 	normal = normalize(normal);
 
-	// get random vector from noise map
-	vec3 randomvec = texture(noiseMap, vertexData.texcoord).rgb * 2.0 - 1.0;
-
-	// compute local coordinate system (TBN)
+	vec3 randomvec = texture(noiseMap, vertexData.texcoord * noise_scale).rgb * 2.0 - 1.0;
 	vec3 tangent = normalize(randomvec - normal * dot(randomvec, normal));
 	vec3 bitangent = cross(normal, tangent);
-	mat3 tbn = mat3(tangent, bitangent, normal); // tangent to world
+	mat3 tbn = mat3(tangent, bitangent, normal);
 
-	const float radius = 0.5;
+	const float radius = 0.25;
 	float ao = 0.0;
 	for(int i = 0; i < 64; ++i)
 	{
@@ -47,12 +48,11 @@ void main()
 		float sampleZ = texture(depthMap, samplePoint.xy).r;
 		vec4 invPoint = invvp * vec4(vec3(samplePoint.xy, sampleZ) * 2.0 - 1.0, 1.0);
 		invPoint /= invPoint.w;
-
 		// compare and range check
-		if(sampleZ >= samplePoint.z + 0.025 || length(position - invPoint) > radius) {
+		if(sampleZ > samplePoint.z || length(position - invPoint) > radius)
 			ao += 1.0;
-		}
 	}
 	ao /= 64.0;
 	fragAO = vec4(vec3(ao), 1.0);
-}
+
+}                                                                                               

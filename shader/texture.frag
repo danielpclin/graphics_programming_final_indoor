@@ -42,6 +42,12 @@ struct Config {
     bool bloom;
     bool deferredShading;
     bool normalMapping;
+    bool SSAO;
+};
+
+struct View {
+    int width;
+    int height;
 };
 
 uniform bool hasTexture;
@@ -49,10 +55,12 @@ uniform sampler2D textureMap;
 uniform bool hasNormalMap;
 uniform sampler2D NormalMap;
 uniform sampler2D shadowMap;
+uniform sampler2D SSAO_Map;
 uniform vec3 cameraPosition;
 uniform DirectionalLight directionalLight;
 uniform PointLight pointLight; // TODO add point light
 uniform Material material;
+uniform View view;
 
 // /*----- Bloom Effect Uniforms Begin ----- */
 uniform vec3 emissive_sphere_position; // TODO replace with pointLight.position
@@ -89,13 +97,17 @@ void main(void)
         textureColor = vec4(1.0);
 
     // ambient diffuse specular
-    vec3 ambient = vec3(0.0);
+    vec3 ambient = material.ambient * textureColor.rgb * directionalLight.ambient;
     vec3 diffuse = textureColor.rgb * material.diffuse;
     vec3 specular = vec3(0.0);
     color = vec4(diffuse, 1.0);
 
+    if (config.SSAO) {
+        vec2 p = vec2(gl_FragCoord.x / view.width, gl_FragCoord.y / view.height);
+        ambient *= vec4(vec3(texture(SSAO_Map, p)), 1.0).r;
+    }
+
     if (config.blinnPhong) {
-        ambient = material.ambient * textureColor.rgb * directionalLight.ambient;
         diffuse = max(dot(normalizedNormal, directionalLight_LightDirection), 0.0) * textureColor.rgb * material.diffuse * directionalLight.diffuse;
         specular = pow(max(dot(normalizedNormal, directionalLight_HalfwayDirection), 0.0), material.shininess) * material.specular * directionalLight.specular;
         color = vec4((ambient + diffuse + specular), 1.0);

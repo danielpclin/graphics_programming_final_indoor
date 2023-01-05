@@ -22,8 +22,6 @@ uniform sampler2D gtex[5];
 
 uniform int gbufferidx;
 
-
-
 void main()
 {
 	vec3 color = vec3(texture(colorTexture, TexCoords));
@@ -54,6 +52,5 @@ void main()
         FragColor = vec4(gcolor, 1.0);
     }
     /*----- Bloom Effect End -----*/
-
 
 }
