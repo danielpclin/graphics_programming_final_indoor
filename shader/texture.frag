@@ -122,7 +122,7 @@ void main(void)
     for(int x = -5; x <= 5; ++x) {
         for(int y = -5; y <= 5; ++y) {
             float pcfDepth = texture(shadowMap, shadowPosition.xy + vec2(x, y) * texelSize).x;
-            shadow += shadowPosition.z - bias > pcfDepth ? 1.0 : 0.0;
+            shadow += shadowPosition.z - bias > pcfDepth ? 0.8 : 0.0;
         }
     }
     shadow /= 121.0;
