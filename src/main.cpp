@@ -108,7 +108,7 @@ void init() {
     //Global Setting
     glClearColor(0.19, 0.19, 0.19, 1.0);
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
+    //glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_STENCIL_TEST);
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
@@ -464,7 +464,6 @@ void draw() {
         glBindVertexArray(mesh.vao);
         glDrawElements(GL_TRIANGLES, (GLint) mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid *) nullptr);
     }
-    glActiveTexture(GL_TEXTURE0);
 
     // Point Light Shadow Pass
     float near_plane = 0.22f;
@@ -497,6 +496,7 @@ void draw() {
         glDrawElements(GL_TRIANGLES, (GLint)mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid*) nullptr);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //glActiveTexture(GL_TEXTURE0);
     // Deferred  Shading
     glBindFramebuffer(GL_FRAMEBUFFER, GBufferFBO);
     glViewport(0, 0, WIDTH, HEIGHT);
