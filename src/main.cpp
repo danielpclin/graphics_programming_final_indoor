@@ -165,7 +165,8 @@ void init() {
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
-    // Kernel Generation
+    /* ----- Kernel Generation ----- */
+    
     ssaoEffectShader->setUniformBlockBinding("SSAOKernals", 0);
 
     const int KERNEL_SIZE = 64;
@@ -186,10 +187,8 @@ void init() {
         );
     }
     glBufferData(GL_UNIFORM_BUFFER, KERNEL_SIZE * sizeof(glm::vec4), uniformSSAOKernalPtr, GL_STATIC_DRAW);
-    // glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    // glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboSSAOkernel, 0, KERNEL_SIZE * sizeof(glm::vec4));
 
-    // SSAO FBO init
+    /* SSAO FBO init */
     
     glGenFramebuffers(1, &SSAO_FBO);
     glBindFramebuffer(GL_FRAMEBUFFER, SSAO_FBO);
@@ -203,7 +202,7 @@ void init() {
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // Random Noise
+    /*----- Random Noise ----- */
     glGenTextures(1, &noiseMap);
     glBindTexture(GL_TEXTURE_2D, noiseMap);
     glm::vec3 noiseData[16];
@@ -819,6 +818,19 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     unsigned int attachments[5] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
     glDrawBuffers(5, attachments);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GBufferTexture[5], 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    /*----- SSAO -----*/
+    glBindFramebuffer(GL_FRAMEBUFFER, SSAO_FBO);
+    glDeleteTextures(1, &SSAO_Texture);
+
+    glGenTextures(1, &SSAO_Texture);
+    glBindTexture(GL_TEXTURE_2D, SSAO_Texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, SSAO_Texture, 0);
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     /*----- Post Process RBO/Textures Resize Begin ----- */
