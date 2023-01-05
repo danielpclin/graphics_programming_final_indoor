@@ -79,6 +79,11 @@ GLuint uboSSAOkernel;
 
 /*----- SSAO Process Parameters End ----- */
 
+/*----- FXAA Parameters Begin ----- */
+GLuint FXAA_FBO;
+GLuint FXAA_Texture;
+Shader* FXAA_Shader;
+/*----- FXAA Parameters End ----- */
 
 // Mouse variables
 float mouse_last_x = 0;
@@ -97,6 +102,7 @@ struct RenderConfig {
     bool bloom = false;
     bool NPR = false;
     bool SSAO = false;
+    bool FXAA = false;
 } renderConfig;
 
 //imgui state
@@ -132,6 +138,10 @@ void init() {
     /*----- SSAO Shader Begin -----*/
     ssaoEffectShader = new Shader("shader/SSAO.vert", "shader/SSAO.frag");
     /*----- SSAO Shader End -----*/
+
+    /*----- FXAA Object/Shader Begin ----- */
+    FXAA_Shader = new Shader("shader/FXAA.vert", "shader/FXAA.frag");
+    /*----- FXAA Object/Shader End ----- */
 
     // directional light shadow
     glGenFramebuffers(1, &depthMapFBO);
@@ -281,6 +291,20 @@ void init() {
     }
     /*----- Bloom Effect FBO/Blur Texture Init. End ----- */
 
+    /*----- FXAA FBO Init. Begin ----- */
+    glGenFramebuffers(1, &FXAA_FBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FXAA_FBO);
+    glActiveTexture(GL_TEXTURE9);
+    glGenTextures(1, &FXAA_Texture);
+    glBindTexture(GL_TEXTURE_2D, FXAA_Texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FXAA_Texture, 0);
+    /*----- FXAA FBO Init. End ----- */
+
     /*----- G Buffer Init. Begin ----- */
     glGenFramebuffers(1, &GBufferFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, GBufferFBO);
@@ -382,7 +406,12 @@ void init() {
 void drawToScreen() {
     // draw to screen
     glViewport(0, 0, WIDTH, HEIGHT);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    if (!renderConfig.FXAA) glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    else {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FXAA_FBO);
+        glDrawBuffer(GL_COLOR_ATTACHMENT0);
+    }
+	//glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glClearColor(0.19, 0.19, 0.19, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     screenShader->use();
@@ -423,6 +452,20 @@ void drawToScreen() {
     }
 
 	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    /*----- FXAA Render Begin ----- */
+    if (renderConfig.FXAA) {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glClearColor(0.19, 0.19, 0.19, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        FXAA_Shader->use();
+        glBindVertexArray(frameVAO);
+        glActiveTexture(GL_TEXTURE9);
+        glBindTexture(GL_TEXTURE_2D, FXAA_Texture);
+        FXAA_Shader->setInt("Texture", 9);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+    /*----- FXAA Render End ----- */
 }
 
 void draw() {
@@ -762,6 +805,10 @@ void prepare_imgui() {
         ImGui::Checkbox("NPR", &renderConfig.NPR);
         /*----- NPR ImGui End -----*/
 
+        /*----- NPR ImGui Begin -----*/
+        ImGui::Checkbox("FXAA", &renderConfig.FXAA);
+        /*----- NPR ImGui End -----*/
+
         ImGui::Separator();
         ImGui::Text("Camera position %.2f, %.2f, %.2f", camera->position.x, camera->position.y, camera->position.z);
         ImGui::Text("Camera yaw: %.2f°, pitch: %.2f°", camera->yaw, camera->pitch);
@@ -948,6 +995,21 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, BloomEffect_pingpongBuffer[i], 0);
     }
     /*----- Bloom Effect Textures Resize End ----- */
+
+    /*----- FXAA Textures Resize Begin ----- */
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FXAA_FBO);
+
+    glActiveTexture(GL_TEXTURE9);
+    glDeleteTextures(1, &FXAA_Texture);
+    glGenTextures(1, &FXAA_Texture);
+    glBindTexture(GL_TEXTURE_2D, FXAA_Texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FXAA_Texture, 0);
+    /*----- FXAA Textures Resize End ----- */
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
