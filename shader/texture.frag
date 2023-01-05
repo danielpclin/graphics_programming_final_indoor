@@ -70,6 +70,10 @@ uniform vec3 emissive_sphere_position; // TODO replace with pointLight.position
 uniform bool isLightObject;
 //*----- Bloom Effect Uniforms End ----- */
 
+//*----- NPR Variables Begin ----- */
+float nDotL;
+//*----- NPR Variables End ----- */
+
 uniform Config config;
 
 float random(vec4 seed4) {
@@ -114,6 +118,11 @@ void main(void)
         color = vec4((ambient + diffuse + specular), 1.0);
     }
 
+    if (config.NPR) {
+        nDotL = dot(normalizedNormal, lightDirection);
+        diffuse = diffuse * floor(nDotL * 3) / 3;
+    }
+
     // directional light shadow
     float bias = max(0.06 * (1.0 - dot(normalizedNormal, directionalLight_LightDirection)), 0.01);
 
@@ -152,6 +161,10 @@ void main(void)
         vec3 Bloom_specular = directionalLight.specular * Bloom_spec * material.specular;
         Bloom_ambient  *= attenuation;
         Bloom_diffuse  *= attenuation;
+        if (config.NPR) {
+            nDotL = dot(normalizedNormal, Bloom_lightDir);
+            Bloom_diffuse = Bloom_diffuse * floor(nDotL * 3) / 3;
+        }
         Bloom_specular *= attenuation;
 
         // point light shadow
