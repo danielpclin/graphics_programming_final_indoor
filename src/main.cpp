@@ -425,6 +425,8 @@ void draw() {
 
     shadowMapShader->use();
     shadowMapShader->setMat4("VP", depthVP);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
 
     shadowMapShader->setMat4("M", glm::mat4(1.0));
     for (auto &mesh: gray_room->meshes) {
@@ -436,8 +438,9 @@ void draw() {
         glBindVertexArray(mesh.vao);
         glDrawElements(GL_TRIANGLES, (GLint) mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid *) nullptr);
     }
+    glActiveTexture(GL_TEXTURE0);
 
-    // Deferred  Shading
+    // Deferred Shading
     glBindFramebuffer(GL_FRAMEBUFFER, GBufferFBO);
     glViewport(0, 0, WIDTH, HEIGHT);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
