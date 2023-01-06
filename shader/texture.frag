@@ -78,7 +78,7 @@ uniform bool isLightObject;
 
 // Area_Light Uniforms Begin
 uniform AreaLight areaLight;
-uniform vec3 areaLightTranslate;
+uniform mat4 areaLightModel;
 uniform vec3 viewPosition;
 uniform sampler2D LTC1; // for inverse M
 uniform sampler2D LTC2; // GGX norm, fresnel, 0(unused), sphere
@@ -309,15 +309,22 @@ void main(void)
         );
 
         // translate light source for testing
-        vec3 translatedPoints[4];
-        translatedPoints[0] = areaLight.points[0] + areaLightTranslate;
-        translatedPoints[1] = areaLight.points[1] + areaLightTranslate;
-        translatedPoints[2] = areaLight.points[2] + areaLightTranslate;
-        translatedPoints[3] = areaLight.points[3] + areaLightTranslate;
+        vec4 translatedPoints_4[4];
+        translatedPoints_4[0] = areaLightModel * vec4(areaLight.points[0],1.0);
+        translatedPoints_4[1] = areaLightModel * vec4(areaLight.points[1],1.0);
+        translatedPoints_4[2] = areaLightModel * vec4(areaLight.points[2],1.0);
+        translatedPoints_4[3] = areaLightModel * vec4(areaLight.points[3],1.0);
+
+        vec3 translatedPoints_3[4];
+        translatedPoints_3[0] = vec3(translatedPoints_4[0].x,translatedPoints_4[0].y,translatedPoints_4[0].z);
+        translatedPoints_3[1] = vec3(translatedPoints_4[1].x,translatedPoints_4[1].y,translatedPoints_4[1].z);
+        translatedPoints_3[2] = vec3(translatedPoints_4[2].x,translatedPoints_4[2].y,translatedPoints_4[2].z);
+        translatedPoints_3[3] = vec3(translatedPoints_4[3].x,translatedPoints_4[3].y,translatedPoints_4[3].z);
+
 
         // Evaluate LTC shading
-        vec3 LTC_diffuse = LTC_Evaluate(N, V, P, mat3(1), translatedPoints, areaLight.twoSided);
-        vec3 LTC_specular = LTC_Evaluate(N, V, P, Minv, translatedPoints, areaLight.twoSided);
+        vec3 LTC_diffuse = LTC_Evaluate(N, V, P, mat3(1), translatedPoints_3, areaLight.twoSided);
+        vec3 LTC_specular = LTC_Evaluate(N, V, P, Minv, translatedPoints_3, areaLight.twoSided);
 
         // GGX BRDF shadowing and Fresnel
         // t2.x: shadowedF90 (F90 normally it should be 1.0)
@@ -326,6 +333,6 @@ void main(void)
 
         result = areaLight.color * areaLight.intensity * (LTC_specular + diffuse * LTC_diffuse);
         result = ToSRGB(result);
-        color = vec4(result, 1.0f);
+        color += vec4(result, 1.0f);
     }
 }

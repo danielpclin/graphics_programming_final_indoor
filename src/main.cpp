@@ -74,7 +74,7 @@ GLuint uboSSAOkernel;
 
 /*----- SSAO Process Parameters End ----- */
 
-/*----- Light Area Parameters Begin ----- */
+/*----- Area Light Parameters Begin ----- */
 struct LTC_matrices {
     GLuint mat1;
     GLuint mat2;
@@ -97,6 +97,10 @@ VertexAL areaLightVertices[6] = {
 LTC_matrices mLTC;
 glm::vec3 areaLightColor(0.8f, 0.6f, 0.0f);
 glm::vec3 areaLightPosition(1.0, 0.5, -0.5);
+float areaLightRotate = 0.0;
+GLuint areaLightVAO;
+Shader* areaLightShader;
+glm::mat4 areaLightModel;
 /*----- Light Area Parameters End*/
 
 
@@ -187,6 +191,10 @@ void init() {
     /*----- SSAO Shader Begin -----*/
     ssaoEffectShader = new Shader("shader/SSAO.vert", "shader/SSAO.frag");
     /*----- SSAO Shader End -----*/
+
+    /*----- Area Light Shader Begin -----*/
+    areaLightShader = new Shader("shader/AreaLight.vert", "shader/AreaLight.frag");
+    /*----- Area Light Shader End -----*/
 
     // directional light shadow
     glGenFramebuffers(1, &depthMapFBO);
@@ -386,6 +394,29 @@ void init() {
     
     mLTC.mat1 = loadMTexture();
     mLTC.mat2 = loadLUTTexture();
+
+    glGenVertexArrays(1, &areaLightVAO);
+    glBindVertexArray(areaLightVAO);
+
+    GLuint areaLightVBO;
+    glGenBuffers(1, &areaLightVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, areaLightVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(areaLightVertices), areaLightVertices, GL_STATIC_DRAW);
+
+    // position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat),
+        (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+
+    // normal
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat),
+        (GLvoid*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1);
+
+    // texcoord
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat),
+        (GLvoid*)(6 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(2);
 
     /*----- Area Light Init. End -----*/
 
@@ -631,8 +662,13 @@ void draw() {
         shader->setVec3("areaLight.points[3]", areaLightVertices[5].position);
         shader->setVec3("areaLight.color", areaLightColor);
         shader->setFloat("areaLight.intensity", 2.0);
-        shader->setVec3("areaLightTranslate", areaLightPosition);
         shader->setVec3("viewPosition", camera->position);
+
+        glm::mat4 model(1.0);
+        areaLightModel = glm::translate(model, areaLightPosition);
+        areaLightModel = glm::rotate(areaLightModel, glm::radians(areaLightRotate), glm::vec3(0, 1, 0));
+
+        shader->setMat4("areaLightModel", areaLightModel);
 
         glActiveTexture(GL_TEXTURE11);
         glBindTexture(GL_TEXTURE_2D, mLTC.mat1);
@@ -672,6 +708,19 @@ void draw() {
         shader->setVec3("material.specular", trice->materials[mesh.materialID].specularColor);
         shader->setFloat("material.shininess", trice->materials[mesh.materialID].shininess);
         glDrawElements(GL_TRIANGLES, (GLint) mesh.indicesCount, GL_UNSIGNED_INT, (GLvoid *) nullptr);
+    }
+
+    if (renderConfig.Area_Light) {
+        areaLightShader->use();
+        
+        glBindVertexArray(areaLightVAO);
+        areaLightShader->setMat4("model", areaLightModel);
+        areaLightShader->setMat4("view",camera->getViewMatrix());
+        areaLightShader->setMat4("projection", projection_matrix);
+        areaLightShader->setVec3("lightColor", areaLightColor);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        shader->use();
     }
 
     /*----- Bloom Effect Render Begin ----- */
@@ -798,6 +847,7 @@ void prepare_imgui() {
             ImGui::SliderFloat("X##Area_Light", &areaLightPosition.x, 0.0, 4.0);
             ImGui::SliderFloat("Y##Area_Light", &areaLightPosition.y, 0.5, 1.0);
             ImGui::SliderFloat("Z##Area_Light", &areaLightPosition.z, 0.0, -2.0);
+            ImGui::SliderFloat("Rotate##Area_Light", &areaLightRotate, 0.0, 360.0);
         }
         /*----- Area Light ImGui End -----*/
 
