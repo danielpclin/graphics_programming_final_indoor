@@ -125,10 +125,10 @@ bool capture_mouse = false;
 
 struct RenderConfig {
     bool blinn_phong = true;
-    bool directional_light_shadow = true;
+    bool directional_light_shadow = false;
     bool deferred_shading = false;
     int  gbuffer = 0;
-    bool normal_mapping = true;
+    bool normal_mapping = false;
     bool bloom = false;
     bool NPR = false;
     bool SSAO = false;
@@ -914,9 +914,7 @@ void prepare_imgui() {
     {
         ImGui::Begin("Render config"); // Create a window called "Hello, world!" and append into it.
 
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
-        ImGui::Checkbox("Demo Window", &show_demo_window); // Edit bools storing our window open/close state
+//        ImGui::Checkbox("Demo Window", &show_demo_window); // Edit bools storing our window open/close state
         ImGui::Checkbox("Blinn Phong", &renderConfig.blinn_phong);
         ImGui::Checkbox("Directional light shadow", &renderConfig.directional_light_shadow);
         if (renderConfig.directional_light_shadow) {
@@ -971,7 +969,8 @@ void prepare_imgui() {
             camera->position = cameraPosition;
             camera->updateLootAt(cameraLookat);
         }
-
+        ImGui::Separator();
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
         ImGui::End();
     }

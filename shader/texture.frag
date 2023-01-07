@@ -69,12 +69,11 @@ uniform samplerCube pointShadowMap;
 uniform sampler2D SSAO_Map;
 uniform vec3 cameraPosition;
 uniform DirectionalLight directionalLight;
-uniform PointLight pointLight; // TODO add point light
 uniform Material material;
 uniform View view;
 
 //*----- Bloom Effect Uniforms Begin ----- */
-uniform vec3 emissive_sphere_position; // TODO replace with pointLight.position
+uniform vec3 emissive_sphere_position;
 uniform bool isLightObject;
 //*----- Bloom Effect Uniforms End ----- */
 
@@ -300,14 +299,6 @@ void main(void)
         else
             BloomEffect_BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
         // /*----- Bloom Effect End -----*/
-    }
-
-    if (config.deferredShading) {
-
-    }
-
-    if (config.normalMapping) {
-
     }
 
     if (config.areaLight) {
