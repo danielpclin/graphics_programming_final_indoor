@@ -1,6 +1,7 @@
 #include "Shader.h"
 
 Shader::Shader(const char *vertexPath, const char *fragmentPath, const char *geometryPath) {
+    std::cout << "vert " << vertexPath << ", frag " << fragmentPath << std::endl;
     // 1. retrieve the vertex/fragment source code from filePath
     std::string vertexCode;
     std::string fragmentCode;
@@ -81,6 +82,7 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath, const char *geo
 }
 
 Shader::Shader(const char *computePath) {
+    std::cout << "comp " << computePath << std::endl;
     // 1. retrieve the vertex/fragment source code from filePath
     std::string computeCode;
     std::ifstream cShaderFile;

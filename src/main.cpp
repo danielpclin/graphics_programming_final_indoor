@@ -753,8 +753,8 @@ void draw() {
     shader->setMat4("projection", projection_matrix);
 
     if (renderConfig.SSAO) {
-        shader->setInt("view.width", WIDTH);
-        shader->setInt("view.height", HEIGHT);
+        shader->setInt("viewport.width", WIDTH);
+        shader->setInt("viewport.height", HEIGHT);
 
         glActiveTexture(GL_TEXTURE10);
         glBindTexture(GL_TEXTURE_2D, SSAO_Texture);

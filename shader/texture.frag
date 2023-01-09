@@ -70,7 +70,7 @@ uniform sampler2D SSAO_Map;
 uniform vec3 cameraPosition;
 uniform DirectionalLight directionalLight;
 uniform Material material;
-uniform View view;
+uniform View viewport;
 
 //*----- Bloom Effect Uniforms Begin ----- */
 uniform vec3 emissive_sphere_position;
@@ -221,7 +221,7 @@ void main(void)
     color = vec4(diffuse, 1.0);
 
     if (config.SSAO) {
-        vec2 p = vec2(gl_FragCoord.x / view.width, gl_FragCoord.y / view.height);
+        vec2 p = vec2(gl_FragCoord.x / viewport.width, gl_FragCoord.y / viewport.height);
         ambient *= vec4(vec3(texture(SSAO_Map, p)), 1.0).r;
     }
 
